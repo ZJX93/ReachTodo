@@ -128,7 +128,7 @@ npm run build                  # 产物写入 ../server/static
 | `CORS_ORIGINS` | 允许的前端源，逗号分隔（**不要写 `*`**） | `http://localhost:5173` |
 | `RATE_LIMIT_ENABLED` / `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW` | 登录/注册限流（防爆破） | `1` / `10` / `60` |
 | `PAGE_SIZE_DEFAULT` / `PAGE_SIZE_MAX` | 列表分页默认/上限 | `100` / `500` |
-| `SEED_DEMO_ACCOUNT` | 是否播种演示账号 `demo/reach2024` | `1` |
+| `SEED_DEMO_ACCOUNT` | 是否播种演示账号 `demo/reach2026` | `1` |
 | `REMINDER_ENABLED` / `REMINDER_LEAD_MINUTES` / `REMINDER_INTERVAL_SECONDS` | 后端提醒调度总开关 / 默认提前量 / 扫描周期 | `1` / `10` / `60` |
 | `FCM_PROJECT_ID` / `FCM_CLIENT_EMAIL` / `FCM_PRIVATE_KEY` | 推送通道 A：FCM（Android with GMS / Web） | 空 |
 | `HMS_CLIENT_ID` / `HMS_CLIENT_SECRET` | 推送通道 B：华为 Push Kit（**鸿蒙云推送必需**） | 空 |

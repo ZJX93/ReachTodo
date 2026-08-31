@@ -10,7 +10,7 @@ async def main():
         await pg.goto(URL + "/login", wait_until="networkidle")
         # login — first input is username, second is password
         await pg.locator("input").nth(0).fill("demo")
-        await pg.fill('input[type="password"]', "reach2024")
+        await pg.fill('input[type="password"]', "reach2026")
         await pg.click('button[type="submit"]')
         await pg.wait_for_timeout(1500)
         await pg.goto(URL + "/records", wait_until="networkidle")

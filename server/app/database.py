@@ -52,7 +52,7 @@ async def get_db():
 
 # 初始演示账号（仅在用户表为空时创建一次）
 SEED_USERNAME = "demo"
-SEED_PASSWORD = "reach2024"
+SEED_PASSWORD = "reach2026"
 SEED_CATEGORIES = [
     {"name": "工作", "color": "#3B82F6", "icon": "💼", "sort_order": 0},
     {"name": "健康", "color": "#10B981", "icon": "💪", "sort_order": 1},

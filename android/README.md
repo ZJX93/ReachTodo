@@ -43,7 +43,7 @@ App 默认服务器地址为 `http://192.168.9.3:8000`（与 NAS 同局域网）
 2. 地址变化会即时重建 Retrofit 实例，无需重启。
 3. 手机必须能访问该地址（同一局域网，或后端已暴露公网）。原生请求不走浏览器，因此不受后端 `CORS_ORIGINS` 限制。
 
-> 后端即 `ZJX93/Reach-Todo`（FastAPI + React/Vite 单体）。Demo 账号 `demo / reach2024`（若已植入 demo 数据）。
+> 后端即 `ZJX93/Reach-Todo`（FastAPI + React/Vite 单体）。Demo 账号 `demo / reach2026`（若已植入 demo 数据）。
 
 ## 功能对照
 
