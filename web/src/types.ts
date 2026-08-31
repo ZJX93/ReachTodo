@@ -72,6 +72,9 @@ export type LunarSource = 'backend' | 'custom'
 
 export interface Settings {
   defaultFocusMinutes: number
+  shortBreakMinutes: number
+  longBreakMinutes: number
+  longBreakInterval: number
   weekStart: WeekStart
   timezone: string
   lunarSource: LunarSource

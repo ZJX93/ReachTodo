@@ -51,6 +51,46 @@ function Segmented({ value, onChange, options }) {
   )
 }
 
+// 数字步进器：用于「专注时长」等分钟数配置
+function Stepper({ value, onChange, min = 1, max = 180, step = 1, unit }) {
+  const dec = () => onChange(Math.max(min, value - step))
+  const inc = () => onChange(Math.min(max, value + step))
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <button
+        onClick={dec}
+        disabled={value <= min}
+        aria-label="减少"
+        className="w-9 h-9 grid place-items-center rounded-xl border border-white/75 bg-white/55 text-[#475569] text-lg font-semibold hover:bg-white/80 transition disabled:opacity-40 disabled:hover:bg-white/55"
+      >
+        −
+      </button>
+      <div className="flex-1 text-center">
+        <span className="text-[26px] font-extrabold tabular-nums text-[#0f172a]">{value}</span>
+        {unit && <span className="ml-1 text-xs text-[#475569]">{unit}</span>}
+      </div>
+      <button
+        onClick={inc}
+        disabled={value >= max}
+        aria-label="增加"
+        className="w-9 h-9 grid place-items-center rounded-xl border border-white/75 bg-white/55 text-[#475569] text-lg font-semibold hover:bg-white/80 transition disabled:opacity-40 disabled:hover:bg-white/55"
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
+// 时长配置小卡：在设置页「时间设置」里以 2x2 网格展示
+function TimerCard({ title, children }) {
+  return (
+    <div className="rounded-2xl bg-white/55 border border-white/75 p-4 flex flex-col gap-3">
+      <div className="text-xs text-[#475569] font-medium text-center">{title}</div>
+      {children}
+    </div>
+  )
+}
+
 function Section({ title, desc, children }) {
   return (
     <section className={`${cardLg} p-5 md:p-6`}>
@@ -67,6 +107,12 @@ export default function Settings() {
   const navigate = useNavigate()
   const defaultFocusMinutes = useSettingsStore((s) => s.defaultFocusMinutes)
   const setDefaultFocusMinutes = useSettingsStore((s) => s.setDefaultFocusMinutes)
+  const shortBreakMinutes = useSettingsStore((s) => s.shortBreakMinutes)
+  const setShortBreakMinutes = useSettingsStore((s) => s.setShortBreakMinutes)
+  const longBreakMinutes = useSettingsStore((s) => s.longBreakMinutes)
+  const setLongBreakMinutes = useSettingsStore((s) => s.setLongBreakMinutes)
+  const longBreakInterval = useSettingsStore((s) => s.longBreakInterval)
+  const setLongBreakInterval = useSettingsStore((s) => s.setLongBreakInterval)
   const weekStart = useSettingsStore((s) => s.weekStart)
   const setWeekStart = useSettingsStore((s) => s.setWeekStart)
   const timezone = useSettingsStore((s) => s.timezone)
@@ -121,20 +167,27 @@ export default function Settings() {
           </div>
         </header>
 
-        <Section
-          title="专注"
-          desc="番茄钟启动时的默认时长，可在专注页面单次覆盖"
-        >
-          <Segmented
-            value={defaultFocusMinutes}
-            onChange={setDefaultFocusMinutes}
-            options={[
-              { value: 15, label: '15 分钟' },
-              { value: 25, label: '25 分钟' },
-              { value: 45, label: '45 分钟' },
-              { value: 60, label: '60 分钟' },
-            ]}
-          />
+        <Section title="专注" desc="番茄钟时间参数，可在专注页面单次覆盖">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <TimerCard title="专注时长">
+              <Stepper value={defaultFocusMinutes} onChange={setDefaultFocusMinutes} unit="min" />
+            </TimerCard>
+            <TimerCard title="短休息">
+              <Stepper value={shortBreakMinutes} onChange={setShortBreakMinutes} unit="min" />
+            </TimerCard>
+            <TimerCard title="长休息">
+              <Stepper value={longBreakMinutes} onChange={setLongBreakMinutes} unit="min" />
+            </TimerCard>
+            <TimerCard title="长休息间隔">
+              <Stepper
+                value={longBreakInterval}
+                onChange={setLongBreakInterval}
+                min={1}
+                max={20}
+                unit="个"
+              />
+            </TimerCard>
+          </div>
         </Section>
 
         <Section

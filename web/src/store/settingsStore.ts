@@ -20,6 +20,9 @@ const BROWSER_TZ =
 
 const DEFAULTS: Settings = {
   defaultFocusMinutes: 25,
+  shortBreakMinutes: 5,
+  longBreakMinutes: 15,
+  longBreakInterval: 4,
   weekStart: 'sun', // 'sun' | 'mon'
   timezone: BROWSER_TZ,
   // 农历/节假日数据源：
@@ -52,18 +55,45 @@ const writeSettings = (s: Settings): void => {
 
 export interface SettingsState extends Settings {
   setDefaultFocusMinutes: (m: number) => void
+  setShortBreakMinutes: (m: number) => void
+  setLongBreakMinutes: (m: number) => void
+  setLongBreakInterval: (n: number) => void
   setWeekStart: (w: WeekStart) => void
   setTimezone: (tz: string) => void
   // 农历数据源配置：合并写入（支持一次更新多个字段）
   updateLunar: (partial: Partial<Settings>) => void
+  // 番茄钟多字段合并写入
+  updateFocusSettings: (partial: Partial<Settings>) => void
 }
+
+const clampMinutes = (m: number, min = 1, max = 180) => Math.max(min, Math.min(max, m))
+const clampInterval = (n: number, min = 1, max = 20) => Math.max(min, Math.min(max, n))
 
 const useSettingsStore = create<SettingsState>((set) => ({
   ...readSettings(),
   setDefaultFocusMinutes: (m) => {
-    const next = { ...readSettings(), defaultFocusMinutes: m }
+    const v = clampMinutes(m)
+    const next = { ...readSettings(), defaultFocusMinutes: v }
     writeSettings(next)
-    set({ defaultFocusMinutes: m })
+    set({ defaultFocusMinutes: v })
+  },
+  setShortBreakMinutes: (m) => {
+    const v = clampMinutes(m)
+    const next = { ...readSettings(), shortBreakMinutes: v }
+    writeSettings(next)
+    set({ shortBreakMinutes: v })
+  },
+  setLongBreakMinutes: (m) => {
+    const v = clampMinutes(m)
+    const next = { ...readSettings(), longBreakMinutes: v }
+    writeSettings(next)
+    set({ longBreakMinutes: v })
+  },
+  setLongBreakInterval: (n) => {
+    const v = clampInterval(n)
+    const next = { ...readSettings(), longBreakInterval: v }
+    writeSettings(next)
+    set({ longBreakInterval: v })
   },
   setWeekStart: (w) => {
     const next = { ...readSettings(), weekStart: w }
@@ -76,6 +106,11 @@ const useSettingsStore = create<SettingsState>((set) => ({
     set({ timezone: tz })
   },
   updateLunar: (partial: Partial<Settings>) => {
+    const next = { ...readSettings(), ...partial }
+    writeSettings(next)
+    set(partial)
+  },
+  updateFocusSettings: (partial: Partial<Settings>) => {
     const next = { ...readSettings(), ...partial }
     writeSettings(next)
     set(partial)
