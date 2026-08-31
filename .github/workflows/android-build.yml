@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build:
@@ -128,3 +129,12 @@ jobs:
           files: android/app/build/outputs/apk/debug/${{ steps.apk.outputs.apk_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Docker publish with version tag
+        run: |
+          TAG="${{ steps.apk.outputs.tag }}"
+          VERSION="${TAG#Reach-Todo.APP-v}"
+          echo "Triggering Docker publish for version $VERSION"
+          gh workflow run publish.yml -f version="$VERSION" --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
