@@ -115,7 +115,7 @@ export default function Records() {
         </header>
 
         {/* 类型筛选 */}
-        <div className="max-w-3xl mx-auto px-5 md:px-7 pt-4">
+        <div className="max-w-6xl mx-auto px-5 md:px-7 pt-4">
           <div className="flex gap-2 flex-wrap">
             {[{ key: 'all', label: '全部', color: '#2563eb' }, ...RECORD_TYPE_LIST].map((t) => {
               const active = typeFilter === t.key
@@ -137,7 +137,7 @@ export default function Records() {
           </div>
         </div>
 
-        <div className="max-w-3xl mx-auto p-5 md:p-7 space-y-6">
+        <div className="max-w-6xl mx-auto p-5 md:p-7 space-y-6">
           {loading ? (
             <p className="text-[#94a3b8] text-sm">加载中…</p>
           ) : records.length === 0 ? (
@@ -158,7 +158,7 @@ export default function Records() {
                     日历
                   </button>
                 </div>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {g.items.map((rec) => (
                     <RecordCard
                       key={rec.id}
