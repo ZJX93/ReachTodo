@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/zjx93/reach-todo:latest
+    image: ghcr.io/zjx93/reachtodo:latest
     container_name: reach-app
     restart: unless-stopped
     depends_on:
