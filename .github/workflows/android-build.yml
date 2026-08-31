@@ -1,11 +1,8 @@
 name: Android CI (Build & Release APK)
 
+# 备用手动触发：单独发版 APK。
+# 日常推送到 main 的全流程（测试 → 标签 → 镜像 → APK）由 release.yml 负责。
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'android/**'
-      - '.github/workflows/android-build.yml'
   workflow_dispatch:
     inputs:
       version:

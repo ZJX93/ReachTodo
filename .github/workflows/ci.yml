@@ -1,8 +1,7 @@
 name: CI
 
+# 仅 PR 触发：推送（含合并到 main）的全流程由 release.yml 负责（测试 → 标签 → 镜像 → APK）
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 

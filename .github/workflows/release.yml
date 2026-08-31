@@ -1,0 +1,253 @@
+name: Release Pipeline
+
+# 全流程流水线（严格串行，只有上一步完成才进下一步）：
+#   推送/手动触发 → 测试(frontend + backend) → 自动标签(V0.0.X) → 打包 Docker 镜像 → 打包安卓 APK + Release
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 0.0.23 或 Reach-Todo.APP-v0.0.23，留空则自动计算下一个 V0.0.X）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── 第 1 步：测试（PR 检测到 / 推送时的门禁）──────────────────────────────
+  frontend:
+    name: 前端 lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # 用 npm install 而非 npm ci：在 package.json 与 lock 短暂不同步时也能正常安装
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: 后端 pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q -o asyncio_mode=auto
+
+  # ── 第 2 步：自动标签（V0.0.X 第三位自增）───────────────────────────────
+  tag:
+    name: 自动标签
+    needs: [ frontend, backend ]
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ver.outputs.tag }}
+      version: ${{ steps.ver.outputs.version }}
+      version_code: ${{ steps.ver.outputs.version_code }}
+      apk_name: ${{ steps.ver.outputs.apk_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute version & create tag
+        id: ver
+        shell: bash
+        run: |
+          # 手动触发且提供版本号 -> 归一化后使用；否则自动计算下一个 V0.0.X
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION_INPUT="${{ github.event.inputs.version }}"
+          else
+            MAX_PATCH=0
+            for t in $(git tag -l 'Reach-Todo.APP-v0.0.*'); do
+              p="${t#Reach-Todo.APP-v0.0.}"
+              case "$p" in
+                ''|*[!0-9]*) continue ;;
+              esac
+              if [ "$p" -gt "$MAX_PATCH" ]; then MAX_PATCH="$p"; fi
+            done
+            NEXT=$((MAX_PATCH + 1))
+            VERSION_INPUT="Reach-Todo.APP-v0.0.${NEXT}"
+          fi
+
+          # 归一化为 Reach-Todo.APP-vX.Y.Z
+          case "$VERSION_INPUT" in
+            Reach-Todo.APP-v*) ;;
+            v*) VERSION_INPUT="Reach-Todo.APP-${VERSION_INPUT}" ;;
+            *) VERSION_INPUT="Reach-Todo.APP-v${VERSION_INPUT}" ;;
+          esac
+
+          ANDROID_VERSION=$(echo "$VERSION_INPUT" | sed -n 's/.*\(v[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+          [ -z "$ANDROID_VERSION" ] && ANDROID_VERSION="v0.0.1"
+          IFS='.' read -r MAJ MIN PAT <<< "${ANDROID_VERSION#v}"
+          VERSION_CODE=$(( MAJ*10000 + MIN*100 + PAT ))
+          APK_NAME="Reach-Todo.android-${ANDROID_VERSION}.apk"
+
+          echo "tag=$VERSION_INPUT" >> "$GITHUB_OUTPUT"
+          echo "version=${ANDROID_VERSION#v}" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "Computed: tag=$VERSION_INPUT version=${ANDROID_VERSION#v} versionCode=$VERSION_CODE"
+
+      - name: Create & push tag
+        shell: bash
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "标签 $TAG 已存在，直接复用"
+          else
+            git tag "$TAG"
+            if git push origin "refs/tags/$TAG"; then
+              echo "已创建并推送标签 $TAG"
+            else
+              git fetch --tags origin
+              if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+                echo "标签 $TAG 由并发运行创建，复用"
+              else
+                echo "推送标签 $TAG 失败" >&2
+                exit 1
+              fi
+            fi
+          fi
+
+  # ── 第 3 步：打包 Docker 镜像（带版本标签）───────────────────────────────
+  image:
+    name: 打包 Docker 镜像
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=raw,value=${{ needs.tag.outputs.version }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            APP_VERSION=${{ needs.tag.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 第 4 步：打包安卓 APK + Release（挂在第 2 步创建的标签上）─────────────
+  apk:
+    name: 打包安卓 APK
+    needs: image
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Generate fixed debug keystore (deterministic signature across builds)
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" -noprompt
+          fi
+
+      - name: Provide google-services.json
+        run: |
+          TARGET="${{ github.workspace }}/android/app/google-services.json"
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            printf '%s' "${{ secrets.GOOGLE_SERVICES_JSON }}" > "$TARGET"
+          else
+            printf '%s' '{"project_info":{"project_number":"000000000000","project_id":"reach-todo-placeholder","storage_bucket":"reach-todo-placeholder.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.zjx93.reach"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyD000000000000000000000000000000000"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$TARGET"
+          fi
+
+      - name: Build with Gradle (assembleDebug)
+        run: |
+          ./gradlew assembleDebug --no-daemon -PappVersionName="${{ needs.tag.outputs.version }}" -PappVersionCode="${{ needs.tag.outputs.version_code }}"
+
+      - name: Rename APK
+        id: apk
+        shell: bash
+        run: |
+          APK_NAME="${{ needs.tag.outputs.apk_name }}"
+          SRC="${{ github.workspace }}/android/app/build/outputs/apk/debug/app-debug.apk"
+          DST="${{ github.workspace }}/android/app/build/outputs/apk/debug/${APK_NAME}"
+          cp "$SRC" "$DST"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK (build artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.apk_name }}
+          path: android/app/build/outputs/apk/debug/${{ steps.apk.outputs.apk_name }}
+
+      - name: Publish APK to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.tag.outputs.tag }}"
+          APK_PATH="${{ github.workspace }}/android/app/build/outputs/apk/debug/${{ steps.apk.outputs.apk_name }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK_PATH" --clobber --repo "${{ github.repository }}"
+            echo "已更新 Release $TAG"
+          else
+            gh release create "$TAG" "$APK_PATH" --repo "${{ github.repository }}" --title "$TAG" --notes "Reach-Todo 自动构建 $TAG"
+            echo "已创建 Release $TAG"
+          fi

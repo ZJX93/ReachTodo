@@ -1,11 +1,8 @@
 name: Publish Docker image
 
+# 备用触发方式：手动输入版本号 / GitHub Release 发布。
+# 日常推送到 main 的全流程（测试 → 标签 → 镜像 → APK）由 release.yml 负责。
 on:
-  push:
-    branches: [main]
-  # Android 发版时镜像打上对应 X.Y.Z 版本标签。
-  # 注意：action-gh-release 使用 GITHUB_TOKEN 创建 Release，其产生的事件不会触发本工作流，
-  #       因此 Android 工作流会通过 gh workflow run 主动调起本工作流。
   release:
     types: [published]
   workflow_dispatch:
