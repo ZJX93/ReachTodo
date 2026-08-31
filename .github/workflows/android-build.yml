@@ -74,7 +74,7 @@ jobs:
         id: ver
         shell: bash
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION_INPUT="${{ github.event.inputs.version }}"
           else
             VERSION_INPUT="Reach-Todo.APP-v0.0.1"
@@ -87,7 +87,14 @@ jobs:
           DST="${{ github.workspace }}/android/app/build/outputs/apk/debug/${APK_NAME}"
           cp "$SRC" "$DST"
 
-          echo "tag=$VERSION_INPUT" >> "$GITHUB_OUTPUT"
+          # push 到 main：发到滚动预发布版本 continuous；手动触发：用指定版本标签
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG="$VERSION_INPUT"
+          else
+            RELEASE_TAG="continuous"
+          fi
+
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK (build artifact)
@@ -97,11 +104,11 @@ jobs:
           path: android/app/build/outputs/apk/debug/${{ steps.ver.outputs.apk_name }}
 
       - name: Publish APK to GitHub Release
-        if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
+          name: ${{ github.event_name == 'workflow_dispatch' && steps.ver.outputs.tag || 'Continuous Build' }}
+          prerelease: ${{ github.event_name != 'workflow_dispatch' }}
           files: android/app/build/outputs/apk/debug/${{ steps.ver.outputs.apk_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
