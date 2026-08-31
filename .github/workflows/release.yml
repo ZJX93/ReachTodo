@@ -172,9 +172,11 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── 第 4 步：打包安卓 APK + Release（挂在第 2 步创建的标签上）─────────────
+  # 注意：needs 同时列出 image 与 tag——job outputs 只能访问直接依赖，
+  #       跨层访问 needs.tag.outputs.* 必须显式声明 tag 依赖。
   apk:
     name: 打包安卓 APK
-    needs: image
+    needs: [ image, tag ]
     runs-on: ubuntu-latest
     defaults:
       run:
