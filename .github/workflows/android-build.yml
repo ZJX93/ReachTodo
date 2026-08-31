@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release tag/名称（留空则用默认 Reach-Todo.APP-v0.0.1）'
+        description: 'Release 版本号（如 Reach-Todo.APP-v0.0.21）。留空则自动计算下一个 V0.0.X'
         required: false
-        default: 'Reach-Todo.APP-v0.0.1'
+        default: ''
 
 permissions:
   contents: write
@@ -24,6 +24,9 @@ jobs:
         working-directory: android
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -60,25 +63,46 @@ jobs:
             printf '%s' '{"project_info":{"project_number":"000000000000","project_id":"reach-todo-placeholder","storage_bucket":"reach-todo-placeholder.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.zjx93.reach"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyD000000000000000000000000000000000"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$TARGET"
           fi
 
-      - name: Build with Gradle (assembleDebug)
+      - name: Compute version (auto V0.0.X, 第三位自增)
+        id: ver
+        shell: bash
         run: |
-          VERSION_INPUT="${{ github.event.inputs.version }}"
-          [ -z "$VERSION_INPUT" ] && VERSION_INPUT="Reach-Todo.APP-v0.0.1"
+          # 手动触发且提供了版本号 -> 直接使用；否则自动计算下一个 V0.0.X
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION_INPUT="${{ github.event.inputs.version }}"
+          else
+            # 取已有 Reach-Todo.APP-v0.0.* 标签中最大的第三位 +1（前两位固定 0.0）
+            MAX_PATCH=0
+            for t in $(git tag -l 'Reach-Todo.APP-v0.0.*'); do
+              p="${t#Reach-Todo.APP-v0.0.}"
+              case "$p" in
+                ''|*[!0-9]*) continue ;;
+              esac
+              if [ "$p" -gt "$MAX_PATCH" ]; then MAX_PATCH="$p"; fi
+            done
+            NEXT=$((MAX_PATCH + 1))
+            VERSION_INPUT="Reach-Todo.APP-v0.0.${NEXT}"
+          fi
+
           ANDROID_VERSION=$(echo "$VERSION_INPUT" | sed -n 's/.*\(v[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
           [ -z "$ANDROID_VERSION" ] && ANDROID_VERSION="v0.0.1"
           IFS='.' read -r MAJ MIN PAT <<< "${ANDROID_VERSION#v}"
           VERSION_CODE=$(( MAJ*10000 + MIN*100 + PAT ))
-          ./gradlew assembleDebug --no-daemon -PappVersionName="${ANDROID_VERSION#v}" -PappVersionCode="$VERSION_CODE"
 
-      - name: Decide versions and rename APK
-        id: ver
+          echo "version=$VERSION_INPUT" >> "$GITHUB_OUTPUT"
+          echo "android_version=${ANDROID_VERSION#v}" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "Computed version: $VERSION_INPUT (versionCode=$VERSION_CODE)"
+
+      - name: Build with Gradle (assembleDebug)
+        run: |
+          ./gradlew assembleDebug --no-daemon -PappVersionName="${{ steps.ver.outputs.android_version }}" -PappVersionCode="${{ steps.ver.outputs.version_code }}"
+
+      - name: Rename APK
+        id: apk
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION_INPUT="${{ github.event.inputs.version }}"
-          else
-            VERSION_INPUT="Reach-Todo.APP-v0.0.1"
-          fi
+          VERSION_INPUT="${{ steps.ver.outputs.version }}"
           ANDROID_VERSION=$(echo "$VERSION_INPUT" | sed -n 's/.*\(v[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
           [ -z "$ANDROID_VERSION" ] && ANDROID_VERSION="v0.0.1"
           APK_NAME="Reach-Todo.android-${ANDROID_VERSION}.apk"
@@ -87,28 +111,20 @@ jobs:
           DST="${{ github.workspace }}/android/app/build/outputs/apk/debug/${APK_NAME}"
           cp "$SRC" "$DST"
 
-          # push 到 main：发到滚动预发布版本 continuous；手动触发：用指定版本标签
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RELEASE_TAG="$VERSION_INPUT"
-          else
-            RELEASE_TAG="continuous"
-          fi
-
-          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "tag=$VERSION_INPUT" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK (build artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.ver.outputs.apk_name }}
-          path: android/app/build/outputs/apk/debug/${{ steps.ver.outputs.apk_name }}
+          name: ${{ steps.apk.outputs.apk_name }}
+          path: android/app/build/outputs/apk/debug/${{ steps.apk.outputs.apk_name }}
 
       - name: Publish APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ github.event_name == 'workflow_dispatch' && steps.ver.outputs.tag || 'Continuous Build' }}
-          prerelease: ${{ github.event_name != 'workflow_dispatch' }}
-          files: android/app/build/outputs/apk/debug/${{ steps.ver.outputs.apk_name }}
+          tag_name: ${{ steps.apk.outputs.tag }}
+          name: ${{ steps.apk.outputs.tag }}
+          files: android/app/build/outputs/apk/debug/${{ steps.apk.outputs.apk_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
