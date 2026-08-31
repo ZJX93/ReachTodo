@@ -62,13 +62,15 @@ export default function Stats() {
     <Layout summary={summary} selected="stats" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <h1 className="text-lg font-bold text-[#0f172a] font-display">
-            周回顾 / 数据看板
-          </h1>
-          <p className="text-xs text-[#475569]">回顾这一周，看清节奏与方向</p>
+          <div className="mx-auto w-full max-w-6xl">
+            <h1 className="text-lg font-bold text-[#0f172a] font-display">
+              周回顾 / 数据看板
+            </h1>
+            <p className="text-xs text-[#475569]">回顾这一周，看清节奏与方向</p>
+          </div>
         </header>
 
-        <div className="p-5 md:p-7 space-y-6">
+        <div className="max-w-6xl mx-auto p-5 md:p-7 space-y-6">
           {/* 核心指标 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard

@@ -302,6 +302,7 @@ export default function Dashboard() {
     <Layout summary={summary} selected={selected} onSelect={setSelected}>
       <main className="flex-1 overflow-y-auto md:pb-0 pb-20">
         <header className={`${header} flex items-center justify-between gap-3`}>
+          <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-lg font-bold text-[#0f172a] truncate font-display">
               {currentName}
@@ -346,9 +347,10 @@ export default function Dashboard() {
               + 新建
             </button>
           </div>
+          </div>
         </header>
 
-        <div className="p-5 md:p-7 space-y-7">
+        <div className="max-w-5xl mx-auto p-5 md:p-7 space-y-7">
           {loading ? (
             <p className="text-sm text-[#94a3b8]">加载中…</p>
           ) : selected === 'all' ? (

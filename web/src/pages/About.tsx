@@ -25,6 +25,7 @@ export default function About() {
     <Layout summary={summary} selected={selected} onSelect={setSelected}>
       <main className="flex-1 overflow-y-auto md:pb-0 pb-20">
         <header className={`${header} flex items-center gap-3`}>
+          <div className="mx-auto w-full max-w-3xl flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             aria-label="返回"
@@ -46,9 +47,10 @@ export default function About() {
             <h1 className={`text-xl font-bold ${gradText}`}>关于</h1>
             <p className="text-xs text-[#475569] mt-0.5">抵达 · Reach — 清单与目标</p>
           </div>
+          </div>
         </header>
 
-        <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 space-y-5">
+        <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 space-y-5">
           <section className={`${cardLg} p-5 md:p-6 flex flex-col items-center text-center gap-3`}>
             <div className="w-16 h-16 rounded-3xl brand-gradient grid place-items-center text-white font-bold text-2xl shadow-[0_8px_24px_-12px_rgba(8,145,178,0.3)]">
               <svg viewBox="0 0 24 24" className="w-8 h-8">

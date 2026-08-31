@@ -47,15 +47,17 @@ export default function Matrix() {
     <Layout summary={summary} selected="matrix" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <h1 className="text-lg font-bold text-[#0f172a] font-display">
-            艾森豪威尔四象限
-          </h1>
-          <p className="text-xs text-[#475569]">
-            按「重要 × 紧急」排优先级，先搞定 Q1
-          </p>
+          <div className="mx-auto w-full max-w-6xl">
+            <h1 className="text-lg font-bold text-[#0f172a] font-display">
+              艾森豪威尔四象限
+            </h1>
+            <p className="text-xs text-[#475569]">
+              按「重要 × 紧急」排优先级，先搞定 Q1
+            </p>
+          </div>
         </header>
 
-        <div className="p-5 md:p-7">
+        <div className="max-w-6xl mx-auto p-5 md:p-7">
           {loading ? (
             <p className="text-sm text-[#94a3b8]">加载中…</p>
           ) : (

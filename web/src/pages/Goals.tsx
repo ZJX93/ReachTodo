@@ -48,13 +48,15 @@ export default function Goals() {
     <Layout summary={summary} selected="goals" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <h1 className="text-lg font-bold text-[#0f172a] font-display">我的目标</h1>
-          <p className="text-xs text-[#475569]">
-            给待办关联目标，让每件事都有方向
-          </p>
+          <div className="mx-auto w-full max-w-3xl">
+            <h1 className="text-lg font-bold text-[#0f172a] font-display">我的目标</h1>
+            <p className="text-xs text-[#475569]">
+              给待办关联目标，让每件事都有方向
+            </p>
+          </div>
         </header>
 
-        <div className="max-w-2xl mx-auto p-5 md:p-7">
+        <div className="max-w-3xl mx-auto p-5 md:p-7">
           <form
             onSubmit={add}
             className={`${card} p-4 space-y-3 mb-6`}

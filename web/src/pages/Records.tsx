@@ -86,6 +86,7 @@ export default function Records() {
     <Layout summary={summary} selected="records" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={`${header} flex items-center justify-between gap-3 flex-wrap`}>
+          <div className="mx-auto w-full max-w-6xl flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-lg font-bold text-[#0f172a] font-display">记录</h1>
             <p className="text-xs text-[#475569]">个人日记 · 工作日志 · 读书笔记</p>
@@ -111,6 +112,7 @@ export default function Records() {
             <button onClick={() => setNewPicker(true)} className={btnPrim}>
               + 新建
             </button>
+          </div>
           </div>
         </header>
 

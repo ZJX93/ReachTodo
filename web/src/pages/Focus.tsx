@@ -206,10 +206,12 @@ export default function Focus() {
     <Layout summary={summary} selected="focus" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <h1 className="text-lg font-bold text-[#0f172a] font-display">
-            专注 / 番茄钟
-          </h1>
-          <p className="text-xs text-[#475569]">选个任务，进入心流，时间到自动切换</p>
+          <div className="mx-auto w-full max-w-2xl">
+            <h1 className="text-lg font-bold text-[#0f172a] font-display">
+              专注 / 番茄钟
+            </h1>
+            <p className="text-xs text-[#475569]">选个任务，进入心流，时间到自动切换</p>
+          </div>
         </header>
 
         <div className="p-5 md:p-7 max-w-2xl mx-auto space-y-6">

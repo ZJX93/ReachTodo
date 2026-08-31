@@ -134,7 +134,7 @@ export default function Calendar() {
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         {/* 顶部控制栏 */}
         <header className="sticky top-0 z-10 bg-white/55 backdrop-blur-[18px] border-b border-white/75 px-5 md:px-7 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-bold text-[#0f172a] font-display">日历</h1>
               <p className="text-xs text-[#475569]">{daysFromToday(selected, timezone)}</p>

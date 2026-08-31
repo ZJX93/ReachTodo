@@ -105,7 +105,7 @@ export default function Sidebar({ summary, selected, onSelect }: SidebarProps) {
   const baseItem = `w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#06b6d4] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`
 
   return (
-    <aside className="sidebar hidden md:flex w-64 shrink-0 h-screen m-4 rounded-3xl bg-white/55 border border-white/75 backdrop-blur-[18px] shadow-[0_20px_50px_-20px_rgba(8,145,178,0.35)] flex-col overflow-hidden">
+    <aside className="sidebar hidden md:flex w-64 shrink-0 h-full rounded-3xl bg-white/55 border border-white/75 backdrop-blur-[18px] shadow-[0_20px_50px_-20px_rgba(8,145,178,0.35)] flex-col overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-5">
         <div className="w-10 h-10 rounded-2xl brand-gradient grid place-items-center text-white font-bold text-lg shadow-[0_8px_24px_-12px_rgba(8,145,178,0.3)]">
           {brand}
