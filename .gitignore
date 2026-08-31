@@ -40,3 +40,6 @@ web/vite.config.*.timestamp-*.mjs
 # 前端构建产物：vite 输出到 web/dist，由根 Dockerfile 拷入 server/public，
 # 在容器内生成，不属于源码，不应提交（避免哈希化资源产生大量 diff）。
 web/dist/
+
+# 临时提交信息文件（git commit -F 用，勿纳入版本库）
+.git-commit-msg.txt
