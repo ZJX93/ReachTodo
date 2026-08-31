@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f1ea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>习惯打卡台</title>
+<style>
+/* ==========================================================================
+   习惯打卡台 · 单文件版
+   所有配色均由 JS 从「主题背景 + 强调色」融合派生后注入为 CSS 变量，
+   本文件不硬编码任何具体色值（除少量兜底），保证换肤时全站一致。
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  /* 兜底值，运行时被 deriveTheme() 覆盖 */
+  --bg:        #f4f1ea;
+  --accent:    #7c9a92;
+  --surface:   #fffdf8;
+  --surface-2: #f6f2e9;
+  --surface-3: #efe9dc;
+  --line:      #e6ded0;
+  --text:      #2f3a36;
+  --text-2:    #5c6a64;
+  --text-3:    #94a09a;
+  --dot:       #cdbfae;
+  --dot-alpha: .45;
+  --accent-ink:#ffffff;
+
+  --r:    24px;
+  --r-sm: 14px;
+  --r-xs: 10px;
+  --r-pill: 999px;
+
+  --sh:    0 18px 40px -22px rgba(40,45,42,.34);
+  --sh-sm: 0 8px 20px -12px rgba(40,45,42,.24);
+
+  --sp: 4px;
+  --tap: 44px;              /* 最小触控尺寸 */
+  --nav-h: calc(66px + env(safe-area-inset-bottom, 0px));
+  --maxw: 980px;
+
+  --ease: cubic-bezier(.22,.9,.28,1);
+}
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* 波点底纹：颜色由强调色派生，极低透明度，只做质感不抢内容 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(circle, var(--dot) 1.6px, transparent 1.7px);
+  background-size: 22px 22px;
+  opacity: var(--dot-alpha);
+}
+
+/* 顶部两枚柔和光斑，强化治愈感；reduced-motion 下静止 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 62vh;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 46% at 22% 18%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 80% 8%,  color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%);
+  filter: blur(48px);
+  opacity: .5;
+}
+
+/* ---------- 布局 ---------- */
+.shell {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 16px calc(var(--nav-h) + 28px);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+}
+
+.avatar {
+  width: 38px; height: 38px;
+  flex: 0 0 auto;
+  border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 15px;
+  letter-spacing: .5px;
+  background: var(--surface-3);
+  color: var(--accent-ink);
+  box-shadow: var(--sh-sm);
+  overflow: hidden;
+  user-select: none;
+}
+
+.topbar .who { min-width: 0; flex: 1 1 auto; }
+.topbar .who b {
+  display: block; font-size: 15px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar .who small { display: block; font-size: 12px; color: var(--text-3); line-height: 1.3; }
+
+/* ---------- 通用块 ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+  box-shadow: var(--sh-sm);
+  color: var(--text);
+}
+
+/* 内嵌方块：底色在卡片基础上再融一层强调色，形成层次 */
+.inset {
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  color: var(--text);
+}
+.inset-2 {
+  background: var(--surface-3);
+  border-radius: var(--r-xs);
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+.sec-title {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin: 22px 2px 10px;
+  font-size: 13px; font-weight: 700; letter-spacing: .4px;
+  color: var(--text-3);
+}
+.sec-title .more { font-size: 12px; color: var(--text-3); font-weight: 500; }
+
+.stack { display: grid; gap: 12px; }
+.row   { display: flex; align-items: center; gap: 10px; }
+.grow  { flex: 1 1 auto; min-width: 0; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: var(--r-pill);
+  padding: 0 16px;
+  min-height: var(--tap);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease), opacity .18s;
+  user-select: none;
+}
+.btn:hover  { transform: translateY(-1px); box-shadow: var(--sh-sm); }
+.btn:active { transform: scale(.97); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: var(--sh-sm);
+}
+.btn.ghost { background: transparent; }
+.btn.sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.btn.danger { color: #c0553f; border-color: color-mix(in srgb, #c0553f 40%, transparent); background: transparent; }
+.btn.block { width: 100%; }
+
+/* 圆形图标按钮 */
+.icon-btn {
+  appearance: none; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text);
+  width: var(--tap); height: var(--tap);
+  border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  cursor: pointer; flex: 0 0 auto;
+  transition: transform .16s var(--ease), background .16s var(--ease);
+}
+.icon-btn:hover { background: var(--surface-3); }
+.icon-btn:active { transform: scale(.92); }
+.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon-btn.sm { width: 34px; height: 34px; min-height: 34px; }
+
+/* ---------- 进度环 ---------- */
+.ring-wrap { display: flex; align-items: center; gap: 20px; }
+.ring { position: relative; width: 128px; height: 128px; flex: 0 0 auto; }
+.ring svg { transform: rotate(-90deg); display: block; }
+.ring .ring-txt {
+  position: absolute; inset: 0;
+  display: grid; place-content: center; text-align: center;
+}
+.ring .ring-txt b { font-size: 27px; font-weight: 800; line-height: 1.1; letter-spacing: -.5px; }
+.ring .ring-txt span { font-size: 11px; color: var(--text-3); }
+
+/* ---------- 习惯卡片 ---------- */
+.habit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 12px;
+}
+.habit-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px;
+  box-shadow: var(--sh-sm);
+  display: flex; flex-direction: column; gap: 10px;
+  overflow: hidden;
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+  color: var(--text);
+}
+.habit-card:hover { transform: translateY(-2px); box-shadow: var(--sh); }
+.habit-card.size-lg { grid-column: span 2; }
+.habit-card.is-done { border-color: color-mix(in srgb, var(--habit-color) 55%, transparent); }
+.habit-card.is-done::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--habit-color) 16%, transparent), transparent 60%);
+}
+.habit-card.is-archived { opacity: .55; }
+
+.habit-head { display: flex; align-items: flex-start; gap: 10px; }
+.habit-ico {
+  width: 38px; height: 38px; flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--habit-color) 22%, var(--surface-2));
+  color: color-mix(in srgb, var(--habit-color) 72%, var(--text));
+}
+.habit-title { font-weight: 700; font-size: 15px; line-height: 1.35; word-break: break-word; }
+.habit-sub { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+
+.habit-val { display: flex; align-items: baseline; gap: 4px; }
+.habit-val b { font-size: 21px; font-weight: 800; letter-spacing: -.4px; }
+.habit-val span { font-size: 12px; color: var(--text-3); }
+
+.bar { height: 7px; border-radius: var(--r-pill); background: var(--surface-3); overflow: hidden; }
+.bar > i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--habit-color);
+  transition: width .45s var(--ease);
+}
+
+/* 打卡主控件 */
+.check-pad {
+  width: 100%; min-height: 52px;
+  border-radius: var(--r-sm);
+  border: 1.5px dashed color-mix(in srgb, var(--habit-color) 55%, transparent);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  transition: transform .16s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
+}
+.check-pad:hover { background: var(--surface-3); }
+.check-pad:active { transform: scale(.975); }
+.check-pad:focus-visible { outline: 2px solid var(--habit-color); outline-offset: 2px; }
+.check-pad.done {
+  border-style: solid;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--habit-color) 88%, var(--surface));
+  color: var(--accent-ink);
+}
+
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper .icon-btn { width: 40px; height: 40px; min-height: 40px; }
+.stepper .num { flex: 1 1 auto; text-align: center; font-weight: 800; font-size: 17px; }
+.stepper .num small { font-weight: 500; font-size: 11px; color: var(--text-3); }
+
+.time-row { display: flex; gap: 8px; align-items: center; }
+.time-row input {
+  flex: 1 1 0; min-width: 0;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  padding: 9px 10px;
+  min-height: 40px;
+}
+.time-row input:focus { outline: 2px solid var(--habit-color); outline-offset: 1px; }
+.time-row .sep { color: var(--text-3); font-size: 12px; flex: 0 0 auto; }
+
+/* 卡片内最近 7 天小热力（大卡专属） */
+.mini-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.mini-week i {
+  height: 16px; border-radius: 5px;
+  background: var(--surface-3);
+  display: block;
+}
+
+.habit-tools {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; gap: 4px;
+  opacity: 0; transition: opacity .18s var(--ease);
+}
+.habit-card:hover .habit-tools,
+.habit-card:focus-within .habit-tools { opacity: 1; }
+@media (hover: none) { .habit-tools { opacity: 1; } }
+.habit-tools .icon-btn {
+  width: 30px; height: 30px; min-height: 30px;
+  background: var(--surface-2);
+}
+
+/* ---------- 心情 ---------- */
+.moods { display: flex; gap: 6px; justify-content: space-between; }
+.mood {
+  appearance: none; border: 1px solid transparent; background: transparent;
+  border-radius: var(--r-sm);
+  padding: 6px 2px 4px;
+  flex: 1 1 0; min-width: 0;
+  cursor: pointer; color: var(--text-3);
+  display: grid; justify-items: center; gap: 2px;
+  font: inherit; font-size: 10.5px;
+  transition: transform .16s var(--ease), background .16s var(--ease);
+}
+.mood:hover { background: var(--surface-2); }
+.mood:active { transform: scale(.94); }
+.mood.on { color: var(--accent); background: var(--surface-2); }
+.mood.on svg { transform: scale(1.1); }
+.mood svg { transition: transform .2s var(--ease); }
+
+/* ---------- 热力图 ---------- */
+.heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 4px; }
+.heat i {
+  width: 100%; aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  background: var(--surface-3);
+  display: block;
+  min-width: 8px;
+}
+.heat i.empty { opacity: .28; }
+.heat-legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); }
+.heat-legend i { width: 12px; height: 12px; border-radius: 3px; display: block; }
+
+/* ---------- 徽章 ---------- */
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.badge {
+  text-align: center; padding: 12px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid transparent;
+}
+.badge.on {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.badge svg { margin: 0 auto 5px; }
+.badge b { display: block; font-size: 12px; font-weight: 700; }
+.badge small { display: block; font-size: 10px; line-height: 1.35; margin-top: 2px; opacity: .8; }
+
+/* ---------- 底部导航 ---------- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  height: var(--nav-h);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.5) blur(16px);
+  -webkit-backdrop-filter: saturate(1.5) blur(16px);
+  border-top: 1px solid var(--line);
+}
+.tabbar-inner {
+  max-width: var(--maxw); margin: 0 auto; width: 100%;
+  display: flex;
+}
+.tab {
+  appearance: none; background: transparent; border: 0;
+  flex: 1 1 0; min-width: 0;
+  display: grid; place-items: center; gap: 2px;
+  padding: 8px 0 6px;
+  font: inherit; font-size: 10.5px; font-weight: 600;
+  color: var(--text-3); cursor: pointer;
+  transition: color .18s var(--ease);
+}
+.tab:active { transform: scale(.95); }
+.tab.on { color: var(--accent); }
+.tab svg { transition: transform .2s var(--ease); }
+.tab.on svg { transform: translateY(-1px) scale(1.06); }
+
+/* ---------- 弹层 ---------- */
+.mask {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(24,28,26,.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fade .2s var(--ease);
+}
+.mask[hidden] { display: none; }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+.sheet {
+  width: 100%; max-width: 620px;
+  max-height: 92vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--r) var(--r) 0 0;
+  padding: 8px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -18px 50px -20px rgba(30,35,32,.4);
+  animation: rise .26s var(--ease);
+}
+@keyframes rise { from { transform: translateY(24px); opacity: .6 } to { transform: none; opacity: 1 } }
+
+.sheet-grip {
+  width: 42px; height: 4px; border-radius: var(--r-pill);
+  background: var(--surface-3);
+  margin: 6px auto 12px;
+}
+.sheet h3 { margin: 0 0 2px; font-size: 18px; font-weight: 800; }
+.sheet .sheet-sub { margin: 0 0 16px; font-size: 12px; color: var(--text-3); }
+
+.field { margin-bottom: 14px; }
+.field > label {
+  display: block; font-size: 12px; font-weight: 700;
+  color: var(--text-3); margin-bottom: 6px; letter-spacing: .2px;
+}
+.input, .select {
+  width: 100%;
+  font: inherit; font-size: 15px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  min-height: var(--tap);
+}
+.select { appearance: none; background-image: none; }
+.input:focus, .select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.input::placeholder { color: var(--text-3); }
+
+/* 选项网格 */
+.opts { display: grid; gap: 8px; }
+.opts.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.opts.cols-5 { grid-template-columns: repeat(5, 1fr); }
+.opts.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.opt {
+  appearance: none; cursor: pointer;
+  border: 1.5px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  padding: 9px 4px;
+  min-height: var(--tap);
+  font: inherit; font-size: 12px; font-weight: 600;
+  display: grid; place-items: center; gap: 3px;
+  transition: transform .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease);
+}
+.opt:hover { background: var(--surface-3); }
+.opt:active { transform: scale(.96); }
+.opt.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface-2));
+  color: var(--text);
+}
+.opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.swatch { width: 22px; height: 22px; border-radius: var(--r-pill); border: 2px solid rgba(255,255,255,.6); }
+.ico-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.ico-grid .opt { min-height: 42px; padding: 6px 2px; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--nav-h) + 18px);
+  transform: translate(-50%, 14px);
+  z-index: 90;
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  font-size: 13.5px; font-weight: 600;
+  box-shadow: var(--sh);
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s var(--ease), transform .22s var(--ease);
+  max-width: min(90vw, 420px);
+  text-align: center;
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- 撒花 ---------- */
+.confetti {
+  position: fixed; z-index: 80; pointer-events: none;
+  width: 8px; height: 8px; border-radius: 2px;
+}
+
+/* ---------- 空态 ---------- */
+.empty {
+  text-align: center; padding: 34px 18px;
+  color: var(--text-3); font-size: 13.5px;
+}
+.empty svg { opacity: .5; margin-bottom: 8px; }
+
+/* ---------- 同步状态 ---------- */
+.sync-dot {
+  width: 7px; height: 7px; border-radius: var(--r-pill);
+  background: var(--text-3); flex: 0 0 auto;
+}
+.sync-dot.ok   { background: #4f9d76; }
+.sync-dot.warn { background: #d08b3c; }
+.sync-dot.err  { background: #c0553f; }
+.sync-dot.busy { animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
+
+.kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 9px 0; }
+.kv + .kv { border-top: 1px solid var(--line); }
+.kv .k { color: var(--text-2); }
+.kv .v { color: var(--text); font-weight: 600; text-align: right; word-break: break-all; }
+
+.muted { color: var(--text-3); font-size: 12px; line-height: 1.55; }
+.tiny  { font-size: 11px; }
+
+/* ---------- 桌面增强 ---------- */
+@media (min-width: 760px) {
+  body { font-size: 15.5px; }
+  .shell { padding-left: 24px; padding-right: 24px; }
+  .topbar { padding-left: 24px; padding-right: 24px; }
+  .two-col { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; align-items: start; }
+  .tabbar { border-radius: 0; }
+  .mask { align-items: center; padding: 24px; }
+  .sheet { border-radius: var(--r); max-height: 86vh; }
+  .sheet-grip { display: none; }
+}
+@media (max-width: 759px) {
+  .habit-card.size-lg { grid-column: span 1; }
+  .ring { width: 108px; height: 108px; }
+  .two-col { display: grid; gap: 12px; }
+}
+
+/* 大卡在超窄屏退化为单列已由上面处理；极小屏缩小间距 */
+@media (max-width: 360px) {
+  .habit-grid { grid-template-columns: 1fr; }
+  :root { --r: 20px; }
+}
+
+/* 尊重系统降低动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar"></header>
+<main class="shell" id="view"></main>
+<nav class="tabbar"><div class="tabbar-inner" id="tabbar"></div></nav>
+
+<div class="mask" id="sheet" hidden></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+ * 习惯打卡台 —— 离线优先 + 可选云同步
+ *
+ * 数据契约对齐 Reach 后端 Habit 域规划（server/app/models/habit.py 规划稿）：
+ *   - habit 用 snake_case，与后端 ORM / Pydantic 字段同名，同步时零转换
+ *   - HabitCheckin 以 (habit_id, checkin_date) 为业务唯一键
+ *   - 删除一律走 deleted_at 软删除（墓碑），保证多端同步时能传播删除
+ *   - 每条记录带 updated_at，同步采用 last-write-wins
+ *   - settings 偏好用 camelCase，与 server/app/schemas/setting.py 保持一致
+ *
+ * 日期口径说明：checkin_date 存「用户所在时区的本地日期 YYYY-MM-DD」，
+ * 不存 UTC 时间戳。理由：打卡是「我的今天」而不是「UTC 的今天」；
+ * 且该字段在后端是 Date 类型、不做时区转换，前后端口径天然一致。
+ * （服务端做 streak 聚合时仍用 UTC 比较时间戳 —— 那是统计口径，与此不同。）
+ * ========================================================================== */
+
+/* ============================ 1. 颜色引擎 ============================ */
+
+function hex2rgb(h) {
+  h = String(h).replace('#', '').trim();
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return [124, 154, 146];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function clamp255(v) { return Math.max(0, Math.min(255, Math.round(v))); }
+function rgb2hex(c) {
+  return '#' + c.map(function (v) { return clamp255(v).toString(16).padStart(2, '0'); }).join('');
+}
+function srgb2lin(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+function mix(c1, c2, t) {
+  var a = hex2rgb(c1), b = hex2rgb(c2);
+  t = Math.max(0, Math.min(1, t));
+  return rgb2hex([0, 1, 2].map(function (i) { return a[i] + (b[i] - a[i]) * t; }));
+}
+/** WCAG 相对亮度 */
+function lum(hex) {
+  var c = hex2rgb(hex).map(srgb2lin);
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+/** WCAG 对比度 1~21 */
+function contrast(h1, h2) {
+  var a = lum(h1), b = lum(h2);
+  var hi = Math.max(a, b), lo = Math.min(a, b);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/**
+ * 保证可读：从 seed 出发，沿「远离背景」的方向持续推，直到对比度达标。
+ * 这一步是「文字颜色随明暗自动适配」的核心 —— 不是简单二选一，
+ * 而是二选一之后还要兜底加深/提亮，避免浅色主题下浅灰字看不清。
+ */
+function ensureReadable(seed, bg, target) {
+  target = target || 4.5;
+  var c = seed, t = 0;
+  if (contrast(c, bg) >= target) return c;
+  // 背景亮 → 文字往黑推；背景暗 → 文字往白推
+  var dir = lum(bg) > 0.5 ? '#000000' : '#ffffff';
+  while (contrast(c, bg) < target && t < 0.96) {
+    t += 0.04;
+    c = mix(seed, dir, t);
+  }
+  return c;
+}
+/** 由 seed 派生一层「在某个底上的可读文字色」 */
+function inkOn(bg, accent, target) {
+  var darkInk = mix(mix(accent, '#14181a', 0.86), '#000000', 0.12);
+  var lightInk = mix(mix(accent, '#ffffff', 0.9), '#ffffff', 0.08);
+  var seed = contrast(darkInk, bg) >= contrast(lightInk, bg) ? darkInk : lightInk;
+  return ensureReadable(seed, bg, target);
+}
+
+/**
+ * 派生整套主题。
+ * 规则：卡片 = 背景向「对比方向」抬升 + 融入少量强调色；
+ *       内嵌方块 = 在卡片基础上再融一层强调色（层次递进）；
+ *       每一级文字都基于「它所在的那一层底色」单独算，保证处处可读。
+ */
+function deriveTheme(bg, accent) {
+  var dark = lum(bg) < 0.38;
+  var lift = dark ? '#ffffff' : '#ffffff';
+
+  var surface, surface2, surface3, line;
+  if (dark) {
+    surface  = mix(mix(bg, lift, 0.10), accent, 0.07);
+    surface2 = mix(mix(bg, lift, 0.16), accent, 0.11);
+    surface3 = mix(mix(bg, lift, 0.24), accent, 0.15);
+    line     = mix(mix(bg, lift, 0.20), accent, 0.10);
+  } else {
+    surface  = mix('#ffffff', accent, 0.055);
+    surface2 = mix(surface, accent, 0.115);
+    surface3 = mix(surface, accent, 0.225);
+    line     = mix(accent, '#ffffff', 0.60);
+  }
+
+  // 强调色上的文字（按钮/头像）：强调色本身可能很浅也可能很深，必须单独判
+  var accentInk = contrast('#ffffff', accent) >= contrast('#14181a', accent) ? '#ffffff' : mix(accent, '#000000', 0.72);
+  accentInk = ensureReadable(accentInk, accent, 4.5);
+
+  return {
+    dark: dark,
+    surface: surface,
+    surface2: surface2,
+    surface3: surface3,
+    line: line,
+    text:   inkOn(surface,  accent, 7.0),   // 主文字：高对比
+    text2:  inkOn(surface,  accent, 4.5),   // 次级：正文级
+    text3:  inkOn(surface,  accent, 3.0),   // 辅助：标签级，弱但可读
+    textInset: inkOn(surface2, accent, 5.5),
+    accentInk: accentInk,
+    dot: mix(accent, dark ? '#ffffff' : '#000000', 0.34),
+    dotAlpha: dark ? 0.34 : 0.40,
+    // 热力图 5 档：由空档底 → 强调色递进
+    heat: [0, 0.26, 0.46, 0.70, 1].map(function (t) {
+      var base = dark ? mix(mix(bg, '#ffffff', 0.10), accent, 0.06) : mix(surface, accent, 0.05);
+      return mix(base, accent, t);
+    }),
+    heatEmpty: dark ? mix(bg, '#ffffff', 0.08) : mix(surface, accent, 0.05)
+  };
+}
+
+function applyTheme() {
+  var s = State.settings;
+  var t = deriveTheme(s.backgroundColor, s.accentColor);
+  Theme = t;
+  var r = document.documentElement.style;
+  r.setProperty('--bg', s.backgroundColor);
+  r.setProperty('--accent', s.accentColor);
+  r.setProperty('--surface', t.surface);
+  r.setProperty('--surface-2', t.surface2);
+  r.setProperty('--surface-3', t.surface3);
+  r.setProperty('--line', t.line);
+  r.setProperty('--text', t.text);
+  r.setProperty('--text-2', t.text2);
+  r.setProperty('--text-3', t.text3);
+  r.setProperty('--dot', t.dot);
+  r.setProperty('--dot-alpha', String(t.dotAlpha));
+  r.setProperty('--accent-ink', t.accentInk);
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', s.backgroundColor);
+}
+
+/* ============================ 2. 图标 ============================ */
+
+var P = 'fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"';
+
+var ICONS = {
+  water:    '<path d="M12 3.2c3.4 3.9 5.4 6.6 5.4 9.1a5.4 5.4 0 0 1-10.8 0c0-2.5 2-5.2 5.4-9.1z"/>',
+  book:     '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M19 18v3H6.5A2.5 2.5 0 0 1 4 18.5"/>',
+  run:      '<circle cx="13.2" cy="4.6" r="1.7"/><path d="M9.4 21l2.1-5.2-3.1-2.5 1.6-4.1 3.6 2.1 2.5-1.5"/><path d="M11.2 16.2l-1.9 4.8"/><path d="M14.6 8.6l2.6-1.1"/>',
+  sleep:    '<path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6z"/>',
+  meditate: '<circle cx="12" cy="4.4" r="1.8"/><path d="M12 7.4v3.2"/><path d="M6 20c0-3.4 2.7-5.2 6-5.2s6 1.8 6 5.2z"/><path d="M4.6 16.6L3 20"/><path d="M19.4 16.6L21 20"/>',
+  code:     '<path d="M8.5 8L5 12l3.5 4"/><path d="M15.5 8L19 12l-3.5 4"/>',
+  music:    '<path d="M9 18V6.4l10-2v11.2"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="15.6" r="2.5"/>',
+  salad:    '<path d="M12 20.5c-4 0-7-2.6-7-6.2 4.1-1 7.1 1 7 6.2 0-5.2 3.1-7.2 7-6.2 0 3.6-3 6.2-7 6.2z"/><path d="M12 14.5V9"/><path d="M12 9c-1.6-1.6-1.6-3.6 0-5.2C13.6 5.4 13.6 7.4 12 9z"/>',
+  pill:     '<path d="M7 11.5L11.5 7a3.6 3.6 0 0 1 5.1 5.1L12.1 16.6a3.6 3.6 0 0 1-5.1-5.1z"/><path d="M9.4 9.4l5.1 5.1"/>',
+  pen:      '<path d="M16.6 3.6a2.2 2.2 0 0 1 3.1 3.1L8.2 18.2 3.6 19.4l1.2-4.6z"/>',
+  heart:    '<path d="M12 20.3s-7.2-4.5-7.2-9.4A4 4 0 0 1 12 8.3a4 4 0 0 1 7.2 2.6c0 4.9-7.2 9.4-7.2 9.4z"/>',
+  sun:      '<circle cx="12" cy="12" r="4.4"/><path d="M12 2.4v2.3M12 19.3v2.3M2.4 12h2.3M19.3 12h2.3M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>',
+  leaf:     '<path d="M20.5 3.5C10 3.5 4.8 8.8 4.8 16.2v4"/><path d="M20.5 3.5c0 10.4-5.4 14.7-12.7 14.7"/><path d="M8.8 20.4c1-6.2 5.2-10.4 11.7-11.4"/>',
+  dumbbell: '<path d="M4 9.4v5.2M7 7v10M17 7v10M20 9.4v5.2M7 12h10"/>',
+  star:     '<path d="M12 3.6l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/>',
+  tooth:    '<path d="M12 3.4c-3 0-5.1 1.6-5.1 3.9 0 2 .7 2.6 1 5.2.3 2.3.2 4.1.6 5.5.3 1 1 1.7 2 1.7 1.2 0 1.6-1.4 1.6-3.2v-1.4c0-1 .5-1.6 1-1.6s1 .6 1 1.6v1.4c0 1.8.4 3.2 1.6 3.2 1 0 1.7-.7 2-1.7.4-1.4.3-3.2.6-5.5.3-2.6 1-3.2 1-5.2 0-2.3-2.1-3.9-5.1-3.9z"/>',
+  draw:     '<path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2s-.8-1.6-.8-2.4c0-.9.6-1.6 1.5-1.6h2.2a5 5 0 0 0 5-5c0-3.9-4.4-7-9.9-7z"/><circle cx="7.6" cy="10.6" r=".95"/><circle cx="11" cy="7.6" r=".95"/><circle cx="15.4" cy="9.2" r=".95"/>',
+  language: '<path d="M2.8 5.4h8.4"/><path d="M7 5.4c0 4.6-2 8.2-4.6 10.2"/><path d="M4.8 8.8c1.3 2 3 3.5 4.7 4.3"/><path d="M12.6 20.4l4.2-10.4 4.2 10.4"/><path d="M14.5 16.6h4.6"/>',
+  money:    '<path d="M12 3.2v17.6"/><path d="M16.6 6.6H10a2.6 2.6 0 0 0 0 5.2h3.6a2.6 2.6 0 0 1 0 5.2H7"/>',
+  clean:    '<path d="M12 3v9"/><path d="M8 12h8l1.5 8.6h-11z"/><path d="M9.2 6h5.6"/>',
+  camera:   '<path d="M3.6 8.6h3.2L8.4 6.4h7.2l1.6 2.2h3.2v11H3.6z"/><circle cx="12" cy="14" r="3.4"/>',
+  noPhone:  '<path d="M7 3.2h10v17.6H7z"/><path d="M10.8 18.2h2.4"/><path d="M2.6 3.8l18.8 16.4"/>',
+  smile:    '<circle cx="12" cy="12" r="8.6"/><path d="M8.6 14.2s1.3 1.6 3.4 1.6 3.4-1.6 3.4-1.6"/><path d="M9.3 10v.01M14.7 10v.01"/>',
+  clock:    '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.4V12l3.1 2"/>',
+  flame:    '<path d="M12 21c3.3 0 5.9-2.4 5.9-5.5 0-3.9-3.4-5.4-2.9-9.5-2.5.8-4 3.2-4 5.5 0 1.5.8 2.4.8 3.3 0 1-.8 1.7-1.7 1.7-1.2 0-2.1-1-2.1-2.4-1 1.1-1.5 2.5-1.5 4C6.4 20 7.4 21 12 21z"/>',
+  trophy:   '<path d="M8 3.8h8v4.2a4 4 0 0 1-8 0z"/><path d="M8 4.8H5.4v1.6A3 3 0 0 0 8 9.4"/><path d="M16 4.8h2.6v1.6a3 3 0 0 1-2.6 3"/><path d="M10 20.8h4"/><path d="M12 12v4.4"/><path d="M8.4 20.4h7.2"/>',
+  target:   '<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r=".8"/>',
+  check:    '<path d="M5 12.6l4.8 4.8L19 6.8"/>',
+  plus:     '<path d="M12 5.2v13.6M5.2 12h13.6"/>',
+  minus:    '<path d="M5.2 12h13.6"/>',
+  edit:     '<path d="M15.4 4.6l3.9 3.9L8.6 19.4l-4.4 1.2 1.2-4.4z"/>',
+  trash:    '<path d="M4.8 6.8h14.4"/><path d="M9.2 6.8V4.4h5.6v2.4"/><path d="M6.8 6.8L8 19.6h8l1.2-12.8"/><path d="M10.2 10.6v5.6M13.8 10.6v5.6"/>',
+  close:    '<path d="M6.2 6.2l11.6 11.6M17.8 6.2L6.2 17.8"/>',
+  chevR:    '<path d="M9.2 5.2l7 6.8-7 6.8"/>',
+  chevL:    '<path d="M14.8 5.2l-7 6.8 7 6.8"/>',
+  home:     '<path d="M3.8 11.4L12 4l8.2 7.4"/><path d="M6.4 10v10h11.2V10"/>',
+  list:     '<path d="M8.4 6h11.2M8.4 12h11.2M8.4 18h11.2"/><path d="M4.2 6h.01M4.2 12h.01M4.2 18h.01"/>',
+  chart:    '<path d="M3.6 20.4h16.8"/><path d="M7 20.4v-6.6M12 20.4V6.6M17 20.4v-9.6"/>',
+  user:     '<circle cx="12" cy="8.4" r="3.9"/><path d="M4.8 20.4c0-3.7 3.2-5.6 7.2-5.6s7.2 1.9 7.2 5.6"/>',
+  sync:     '<path d="M20 11.4A8 8 0 0 0 6.4 6.2L3.8 8.6"/><path d="M3.8 4.2v4.4h4.4"/><path d="M4 12.6a8 8 0 0 0 13.6 5.2l2.6-2.4"/><path d="M20.2 19.8v-4.4h-4.4"/>',
+  download: '<path d="M12 3.8v11"/><path d="M7.6 10.4L12 14.8l4.4-4.4"/><path d="M4 19.8h16"/>',
+  upload:   '<path d="M12 15.4V4.2"/><path d="M7.6 8.6L12 4.2l4.4 4.4"/><path d="M4 19.8h16"/>',
+  settings: '<circle cx="9" cy="8" r="2.2"/><circle cx="15" cy="16" r="2.2"/><path d="M4 8h2.8M11.2 8H20M4 16h8.8M17.2 16H20"/>',
+  sparkle:  '<path d="M12 3.4l1.9 4.9 4.9 1.9-4.9 1.9L12 17l-1.9-4.9L5.2 10.2l4.9-1.9z"/><path d="M18.4 16.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>'
+};
+
+var HABIT_ICON_KEYS = ['water','book','run','sleep','meditate','code','music','salad','pill','pen','heart','sun','leaf','dumbbell','star','tooth','draw','language','money','clean','camera','noPhone','smile','clock'];
+
+function icon(name, size, cls) {
+  var d = ICONS[name] || ICONS.smile;
+  var s = size || 22;
+  return '<svg class="' + (cls || '') + '" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" ' + P + ' aria-hidden="true">' + d + '</svg>';
+}
+
+/** 心情表情：1~5 分，纯 SVG 绘制（不用 emoji，保证三端与字体无关的一致呈现） */
+function moodFace(score, size) {
+  var s = size || 26;
+  var eyes = (score >= 5)
+    ? '<path d="M8.4 10.6q1.3-1.5 2.6 0" stroke-width="1.6"/><path d="M13 10.6q1.3-1.5 2.6 0" stroke-width="1.6"/>'
+    : '<circle cx="9.4" cy="10.5" r=".95" fill="currentColor" stroke="none"/><circle cx="14.6" cy="10.5" r=".95" fill="currentColor" stroke="none"/>';
+  var mouths = {
+    1: 'M8.6 16.2Q12 13.6 15.4 16.2',
+    2: 'M8.6 15.9Q12 14.2 15.4 15.9',
+    3: 'M8.8 15.4h6.4',
+    4: 'M8.6 14.6Q12 17.4 15.4 14.6',
+    5: 'M8 14.2Q12 18.4 16 14.2'
+  };
+  var extra = score >= 5
+    ? '<path d="M4.6 6.2l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7L2.2 8.6l1.7-.7z" fill="currentColor" stroke="none"/>'
+    : '';
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" ' + P + ' aria-hidden="true">'
+    + '<circle cx="12" cy="12" r="8.6"/>'
+    + extra + eyes
+    + '<path d="' + mouths[score] + '"/>'
+    + '</svg>';
+}
+
+/* ============================ 3. 常量与状态 ============================ */
+
+var STORE_KEY = 'reach.habit-station.v1';
+
+var CHECK_TYPES = [
+  { key: 'check',     label: '打勾',  desc: '做了就打勾' },
+  { key: 'count',     label: '计数',  desc: '累计次数' },
+  { key: 'duration',  label: '时长',  desc: '累计分钟' },
+  { key: 'timerange', label: '时间段', desc: '记录起止' }
+];
+
+var SIZES = [
+  { key: 'sm', label: '小卡' },
+  { key: 'md', label: '中卡' },
+  { key: 'lg', label: '大卡' }
+];
+
+var CATEGORIES = [
+  { id: 'work',   name: '工作' },
+  { id: 'health', name: '健康' },
+  { id: 'study',  name: '学习' },
+  { id: 'life',   name: '生活' },
+  { id: '',       name: '不归类' }
+];
+
+var FREQS = [
+  { key: 'daily',   label: '每天' },
+  { key: 'weekday', label: '工作日' },
+  { key: 'weekend', label: '周末' },
+  { key: 'custom',  label: '自选' }
+];
+
+var WEEK_CN = ['日', '一', '二', '三', '四', '五', '六'];
+
+// 低饱和治愈系预设：背景 + 强调色成对出现，保证派生后依然柔和
+var PRESET_THEMES = [
+  { bg: '#f4f1ea', accent: '#7c9a92', name: '抹茶' },
+  { bg: '#f6f0ec', accent: '#c08a72', name: '陶土' },
+  { bg: '#eef1f4', accent: '#7d94b0', name: '雾霭' },
+  { bg: '#f5eef0', accent: '#b98a9a', name: '藕荷' },
+  { bg: '#f2f4ec', accent: '#8fa072', name: '青苔' },
+  { bg: '#f7f2e4', accent: '#c9a961', name: '麦穗' },
+  { bg: '#2b2f30', accent: '#8fb3a6', name: '夜苔' },
+  { bg: '#312c33', accent: '#b496b0', name: '夜荷' }
+];
+
+var PRESET_ACCENTS = ['#7c9a92','#c08a72','#7d94b0','#b98a9a','#8fa072','#c9a961','#89a7c4','#c48b7d','#9a8fb8','#6fa39c','#bfa06a','#a8766f'];
+
+var State = null;
+var Theme = deriveTheme('#f4f1ea', '#7c9a92');
+var UI = { tab: 'today', editing: null, sheet: null, syncState: 'idle' };
+
+function uid() {
+  // 用 globalThis 而非 window：便于在非浏览器环境（预览器 / 单测）中复用这段逻辑
+  var c = typeof globalThis !== 'undefined' ? globalThis.crypto : null;
+  if (c && c.randomUUID) return c.randomUUID();
+  return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+function nowISO() { return new Date().toISOString(); }
+
+function defaultSettings() {
+  return {
+    nickname: '旅人',
+    avatarText: '',
+    backgroundColor: '#f4f1ea',
+    accentColor: '#7c9a92',
+    weekStart: 'mon',
+    // 云同步：默认开启。接口地址留空 = 由托管页同源访问 /api（如后端单端口托管本原型）；
+    // 填地址（如 http://127.0.0.1:8000）= 连接远端后端；token 留空 = 匿名访问
+    sync: { enabled: true, apiBase: '', token: '', lastSyncAt: '' }
+  };
+}
+
+/* ============================ 4. 日期工具 ============================ */
+
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function dateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function parseDate(s) { var p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function addDays(s, n) { var d = parseDate(s); d.setDate(d.getDate() + n); return dateStr(d); }
+function todayStr() { return dateStr(new Date()); }
+function diffDays(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 86400000); }
+
+/** 该习惯在指定日期是否需要执行 */
+function isScheduledOn(habit, date) {
+  var wd = parseDate(date).getDay(); // 0=周日
+  var f = habit.frequency || 'daily';
+  if (f === 'daily') return true;
+  if (f === 'weekday') return wd >= 1 && wd <= 5;
+  if (f === 'weekend') return wd === 0 || wd === 6;
+  if (f === 'custom') return (habit.weekdays || []).indexOf(wd) >= 0;
+  return true;
+}
+function freqLabel(habit) {
+  var f = habit.frequency || 'daily';
+  if (f === 'custom') {
+    var d = (habit.weekdays || []).slice().sort().map(function (i) { return '周' + WEEK_CN[i]; });
+    return d.length ? d.join(' ') : '自选';
+  }
+  var m = { daily: '每天', weekday: '工作日', weekend: '周末' };
+  return m[f] || '每天';
+}
+
+/* ============================ 5. 存储 ============================ */
+
+function blankState() {
+  return {
+    version: 1,
+    habits: [],        // Habit
+    checkins: [],      // HabitCheckin
+    moods: [],         // Mood: { id, date, score, note, updated_at }
+    goals: [],         // 轻量目标（供习惯关联）
+    settings: defaultSettings()
+  };
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(State));
+  } catch (e) {
+    toast('本地存储写入失败，可能空间已满');
+  }
+}
+var saveTimer = null;
+function saveSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 260);
+}
+
+function load() {
+  var raw = null;
+  try { raw = localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+  if (!raw) return null;
+  try {
+    var o = JSON.parse(raw);
+    if (!o || typeof o !== 'object' || !Array.isArray(o.habits)) return null;
+    // 前向兼容：补齐可能缺失的字段，避免旧数据把页面搞崩
+    var base = blankState();
+    o.settings = Object.assign(base.settings, o.settings || {});
+    o.settings.sync = Object.assign(base.settings.sync, (o.settings && o.settings.sync) || {});
+    o.habits = (o.habits || []).map(normalizeHabit);
+    o.checkins = o.checkins || [];
+    o.moods = o.moods || [];
+    o.goals = o.goals || [];
+    return o;
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeHabit(h) {
+  return {
+    id: h.id || uid(),
+    name: h.name || '未命名习惯',
+    icon: ICONS[h.icon] ? h.icon : 'smile',
+    color: /^#[0-9a-fA-F]{6}$/.test(h.color || '') ? h.color : '#7c9a92',
+    type: ['check', 'count', 'duration', 'timerange'].indexOf(h.type) >= 0 ? h.type : 'check',
+    target: Number(h.target) > 0 ? Number(h.target) : 1,
+    unit: h.unit || (h.type === 'duration' ? '分钟' : '次'),
+    frequency: ['daily', 'weekday', 'weekend', 'custom'].indexOf(h.frequency) >= 0 ? h.frequency : 'daily',
+    weekdays: Array.isArray(h.weekdays) ? h.weekdays : [],
+    size: ['sm', 'md', 'lg'].indexOf(h.size) >= 0 ? h.size : 'md',
+    category_id: h.category_id || '',
+    goal_id: h.goal_id || null,
+    start_date: h.start_date || todayStr(),
+    archived: !!h.archived,
+    sort_order: Number(h.sort_order) || 0,
+    seed: !!h.seed,
+    deleted_at: h.deleted_at || null,
+    created_at: h.created_at || nowISO(),
+    updated_at: h.updated_at || nowISO()
+  };
+}
+
+/* ---------- 集合访问器 ---------- */
+
+function liveHabits() {
+  return State.habits.filter(function (h) { return !h.deleted_at; });
+}
+function activeHabits() {
+  return liveHabits().filter(function (h) { return !h.archived; });
+}
+function findHabit(id) {
+  for (var i = 0; i < State.habits.length; i++) if (State.habits[i].id === id) return State.habits[i];
+  return null;
+}
+function habitsOn(date) {
+  return activeHabits().filter(function (h) {
+    return h.start_date <= date && isScheduledOn(h, date);
+  });
+}
+
+/** 取某习惯某日的打卡记录（墓碑不影响，查的是 checkins） */
+function getCheckin(habitId, date) {
+  for (var i = 0; i < State.checkins.length; i++) {
+    var c = State.checkins[i];
+    if (c.habit_id === habitId && c.checkin_date === date) return c;
+  }
+  return null;
+}
+
+/**
+ * 构造一条 HabitCheckin（纯函数，不触碰全局 State）。
+ * 抽出它有两个原因：
+ *   1. 示例数据生成时全局 State 还没建立，不能走 setCheckin；
+ *   2. 保证「新建」与「示例播种」两条路径产出的字段完全一致，不会漂移。
+ */
+function mkCheckin(habitId, date, patch) {
+  var c = {
+    id: uid(),
+    habit_id: habitId,
+    user_id: 'local',
+    checkin_date: date,
+    value: 0,
+    start_time: null,
+    end_time: null,
+    note: null,
+    created_at: nowISO(),
+    updated_at: nowISO()
+  };
+  Object.keys(patch || {}).forEach(function (k) { c[k] = patch[k]; });
+  return c;
+}
+
+/** 写入打卡值（幂等：同一 habit+date 只有一条，靠这条唯一性支撑补卡/取消/同步） */
+function setCheckin(habitId, date, patch) {
+  var c = getCheckin(habitId, date);
+  if (!c) {
+    c = mkCheckin(habitId, date, patch);
+    State.checkins.push(c);
+  } else {
+    Object.keys(patch || {}).forEach(function (k) { c[k] = patch[k]; });
+  }
+  c.updated_at = nowISO();
+  saveSoon();
+  return c;
+}
+
+/** 打卡是否达标 */
+function isDone(habit, date) {
+  var c = getCheckin(habit.id, date);
+  if (!c) return false;
+  if (habit.type === 'check') return c.value >= 1;
+  if (habit.type === 'timerange') return !!(c.start_time && c.end_time);
+  return c.value >= habit.target;
+}
+/** 完成度 0~1（用于进度条 / 热力图色阶） */
+function progressOf(habit, date) {
+  var c = getCheckin(habit.id, date);
+  if (!c) return 0;
+  if (habit.type === 'check') return c.value >= 1 ? 1 : 0;
+  if (habit.type === 'timerange') return (c.start_time && c.end_time) ? 1 : 0;
+  return Math.min(1, c.value / Math.max(1, habit.target));
+}
+
+/**
+ * 单个习惯的连续天数（streak）。
+ * 注意：必须每个习惯独立计算 —— 这正是「习惯」区别于
+ * 「账号级全局 streak」（server/routers/stats.py 的做法）的关键。
+ * 今日尚未打卡时不立刻断签，从昨天算起，给用户在当天结束前补救的机会。
+ */
+function habitStreak(habit) {
+  var t = todayStr();
+  var d = isDone(habit, t) ? t : addDays(t, -1);
+  var n = 0;
+  var guard = 0;
+  while (guard++ < 3650) {
+    if (d < habit.start_date) break;
+    if (isScheduledOn(habit, d)) {
+      if (isDone(habit, d)) { n++; d = addDays(d, -1); continue; }
+      break;
+    }
+    d = addDays(d, -1); // 排班日跳过，不断签
+  }
+  return n;
+}
+/** 最长连续纪录 */
+function habitBestStreak(habit) {
+  var best = 0, cur = 0;
+  var start = habit.start_date;
+  var d = start;
+  var today = todayStr();
+  var guard = 0;
+  while (d <= today && guard++ < 3650) {
+    if (isScheduledOn(habit, d)) {
+      if (isDone(habit, d)) { cur++; if (cur > best) best = cur; }
+      else cur = 0;
+    }
+    d = addDays(d, 1);
+  }
+  return best;
+}
+
+/** 某日整体完成率 */
+function dayCompletion(date) {
+  var list = habitsOn(date);
+  if (!list.length) return 0;
+  var sum = 0;
+  list.forEach(function (h) { sum += progressOf(h, date); });
+  return sum / list.length;
+}
+function dayDoneCount(date) {
+  return habitsOn(date).filter(function (h) { return isDone(h, date); }).length;
+}
+/** 全站连续天数：连续几天「全部习惯都完成」 */
+function globalStreak() {
+  var t = todayStr(), d = t, n = 0, guard = 0;
+  var allDone = function (date) {
+    var l = habitsOn(date);
+    return l.length > 0 && l.every(function (h) { return isDone(h, date); });
+  };
+  if (!allDone(t)) d = addDays(t, -1);
+  while (guard++ < 3650) {
+    if (!allDone(d)) break;
+    n++; d = addDays(d, -1);
+  }
+  return n;
+}
+function totalCheckins() {
+  var n = 0;
+  activeHabits().forEach(function (h) {
+    n += State.checkins.filter(function (c) { return c.habit_id === h.id && (c.value > 0 || (c.start_time && c.end_time)); }).length;
+  });
+  return n;
+}
+function perfectDays() {
+  var seen = {}, n = 0;
+  State.checkins.forEach(function (c) { seen[c.checkin_date] = 1; });
+  Object.keys(seen).forEach(function (d) {
+    var l = habitsOn(d);
+    if (l.length && l.every(function (h) { return isDone(h, d); })) n++;
+  });
+  return n;
+}
+
+/* ---------- 心情 ---------- */
+function getMood(date) {
+  for (var i = 0; i < State.moods.length; i++) if (State.moods[i].date === date) return State.moods[i];
+  return null;
+}
+function setMood(date, score) {
+  var m = getMood(date);
+  if (!m) {
+    m = { id: uid(), date: date, score: score, note: null, updated_at: nowISO() };
+    State.moods.push(m);
+  } else {
+    m.score = score;
+    m.updated_at = nowISO();
+  }
+  saveSoon();
+  return m;
+}
+
+/* ---------- 成就徽章 ---------- */
+function badgeList() {
+  var maxStreak = 0;
+  activeHabits().forEach(function (h) { var s = habitBestStreak(h); if (s > maxStreak) maxStreak = s; });
+  var total = totalCheckins();
+  return [
+    { icon: 'sparkle', name: '启程',   desc: '完成首次打卡',   got: total >= 1 },
+    { icon: 'flame',   name: '三日',   desc: '连续 3 天',     got: maxStreak >= 3 },
+    { icon: 'flame',   name: '一周',   desc: '连续 7 天',     got: maxStreak >= 7 },
+    { icon: 'flame',   name: '廿一',   desc: '连续 21 天',    got: maxStreak >= 21 },
+    { icon: 'trophy',  name: '成自然', desc: '连续 66 天',    got: maxStreak >= 66 },
+    { icon: 'target',  name: '小积累', desc: '累计 50 次',    got: total >= 50 },
+    { icon: 'trophy',  name: '百次',   desc: '累计 200 次',  got: total >= 200 },
+    { icon: 'star',    name: '完美日', desc: '全勤 10 天',    got: perfectDays() >= 10 },
+    { icon: 'heart',   name: '记录者', desc: '心情 30 天',    got: State.moods.length >= 30 },
+    { icon: 'sun',     name: '晨型人', desc: '早起习惯 7 天', got: maxStreak >= 7 && activeHabits().some(function (h) { return h.icon === 'sleep' || h.icon === 'sun'; }) }
+  ];
+}
+
+/* ============================ 6. 示例数据 ============================ */
+
+/** 固定种子伪随机，保证每次生成的示例数据一致（避免刷新一次换一批） */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/** 按习惯类型采样一次打卡值。hit=true 表示这一天要达到目标。 */
+function sampleValue(h, rnd, hit) {
+  if (h.type === 'check') return { value: 1 };
+  if (h.type === 'timerange') {
+    var sh = 20 + Math.floor(rnd() * 3);
+    return { value: 1, start_time: pad2(sh) + ':00', end_time: pad2(sh + 2) + ':30' };
+  }
+  if (hit) {
+    // 达标：略微超过目标一点点，看上去更满足
+    return { value: Math.round(h.target * (1 + rnd() * 0.25)) };
+  }
+  // 未达标：只做了目标的三到六成
+  return { value: Math.max(1, Math.round(h.target * (0.35 + rnd() * 0.3))) };
+}
+
+function seedData() {
+  var rnd = mulberry32(20260831);
+  var today = todayStr();
+  var defs = [
+    { name: '喝够水',   icon: 'water',    color: '#7d94b0', type: 'count',    target: 8,  unit: '杯',  freq: 'daily',   cat: 'health' },
+    { name: '读书',     icon: 'book',     color: '#b98a9a', type: 'duration', target: 30, unit: '分钟', freq: 'daily',   cat: 'study'  },
+    { name: '早睡',     icon: 'sleep',    color: '#7c9a92', type: 'check',    target: 1,  unit: '次',   freq: 'daily',   cat: 'health' },
+    { name: '冥想',     icon: 'meditate', color: '#8fa072', type: 'duration', target: 15, unit: '分钟', freq: 'daily',   cat: 'health' },
+    { name: '跑步',     icon: 'run',      color: '#c08a72', type: 'duration', target: 20, unit: '分钟', freq: 'custom',  cat: 'health', weekdays: [1, 3, 5] },
+    { name: '写代码',   icon: 'code',     color: '#89a7c4', type: 'timerange', target: 1, unit: '次',   freq: 'weekday', cat: 'work'   }
+  ];
+
+  var s = blankState();
+  s.settings = defaultSettings();
+  s.goals = [
+    { id: uid(), title: '把身体养回来', created_at: nowISO() },
+    { id: uid(), title: '今年读 24 本书', created_at: nowISO() }
+  ];
+
+  defs.forEach(function (d, i) {
+    var h = normalizeHabit({
+      name: d.name, icon: d.icon, color: d.color, type: d.type, target: d.target, unit: d.unit,
+      frequency: d.freq, weekdays: d.weekdays || [], size: i < 2 ? 'lg' : 'md',
+      category_id: d.cat, goal_id: i < 2 ? s.goals[i].id : null,
+      start_date: addDays(today, -44), sort_order: i, seed: true
+    });
+    s.habits.push(h);
+
+    // 回溯 44 天生成历史。完成概率随时间推移而升高（模拟「习惯在养成」），
+    // 且完成日大多真正达标 —— 否则示例数据会碎成一片，看不出坚持的痕迹。
+    for (var k = 44; k >= 1; k--) {
+      var date = addDays(today, -k);
+      if (!isScheduledOn(h, date) || date < h.start_date) continue;
+      var age = k / 44;                       // 1 = 最早，0 = 最近
+      var p = 0.52 + (1 - age) * 0.38;        // 0.52 → 0.90
+      if (rnd() > p) continue;
+      s.checkins.push(mkCheckin(h.id, date, sampleValue(h, rnd, rnd() < 0.82)));
+    }
+
+    // 今天预填前两个习惯：让首屏进度环与连续天数有内容可看，
+    // 同时故意留几个未打卡，把「亲手完成」的那一下留给用户。
+    if (i < 2 && isScheduledOn(h, today)) {
+      s.checkins.push(mkCheckin(h.id, today, sampleValue(h, rnd, true)));
+    }
+  });
+
+  // 心情：与当日完成率正相关，带一点噪声
+  for (var k2 = 29; k2 >= 0; k2--) {
+    var d2 = addDays(today, -k2);
+    if (rnd() < 0.12) continue;
+    var rate = dayCompletionIn(s, d2);
+    var base = 1 + rate * 3.4;
+    var score = Math.max(1, Math.min(5, Math.round(base + (rnd() - 0.5) * 1.5)));
+    s.moods.push({ id: uid(), date: d2, score: score, note: null, updated_at: nowISO() });
+  }
+
+  return s;
+}
+/** 示例数据生成期尚未把 s 赋给全局 State，这里用一个不依赖全局的完成率函数 */
+function dayCompletionIn(s, date) {
+  var list = s.habits.filter(function (h) { return !h.deleted_at && !h.archived && h.start_date <= date && isScheduledOn(h, date); });
+  if (!list.length) return 0;
+  var sum = 0;
+  list.forEach(function (h) {
+    var c = null;
+    for (var i = 0; i < s.checkins.length; i++) {
+      if (s.checkins[i].habit_id === h.id && s.checkins[i].checkin_date === date) { c = s.checkins[i]; break; }
+    }
+    if (!c) return;
+    if (h.type === 'check') sum += c.value >= 1 ? 1 : 0;
+    else if (h.type === 'timerange') sum += (c.start_time && c.end_time) ? 1 : 0;
+    else sum += Math.min(1, c.value / Math.max(1, h.target));
+  });
+  return sum / list.length;
+}
+
+/* ============================ 7. 云同步 ============================ */
+
+/**
+ * 双向同步（可选能力）。
+ * 契约对齐 Reach 后端 /api/habits 系列：
+ *   GET  /api/habits/sync?since=<ISO>  -> { habits: [], checkins: [], moods: [], server_time }
+ *   POST /api/habits/sync              -> { ok, applied }
+ * 合并策略：按 id 匹配，updated_at 大者胜（last-write-wins）；
+ * 删除通过 deleted_at 墓碑传播，不做物理删除。
+ * 开关默认开启；apiBase 留空 = 同源相对路径（原型由后端单端口托管），填地址 = 连远端。
+ * 关闭开关时全部静默跳过 —— 离线优先，同步永远不是阻塞项。
+ */
+var Sync = {
+  configured: function () {
+    var c = State.settings.sync;
+    return !!(c && c.enabled);
+  },
+
+  request: async function (path, opts) {
+    var c = State.settings.sync;
+    var base = String(c.apiBase).replace(/\/+$/, '');
+    var url = base + path;
+    var headers = { 'Content-Type': 'application/json' };
+    if (c.token) headers['Authorization'] = 'Bearer ' + c.token;
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 8000);
+    try {
+      var res = await fetch(url, Object.assign({ headers: headers, signal: ctrl.signal }, opts || {}));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+
+  /** 合并远端实体数组到本地：逐条 last-write-wins */
+  merge: function (kind, remoteList) {
+    var local = State[kind];
+    var changed = 0;
+    (remoteList || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      var idx = -1;
+      for (var i = 0; i < local.length; i++) if (local[i].id === r.id) { idx = i; break; }
+      if (idx < 0) {
+        local.push(r);
+        changed++;
+        return;
+      }
+      var l = local[idx];
+      var lt = Date.parse(l.updated_at || 0) || 0;
+      var rt = Date.parse(r.updated_at || 0) || 0;
+      if (rt > lt) { local[idx] = Object.assign({}, l, r); changed++; }
+    });
+    return changed;
+  },
+
+  pull: async function () {
+    var since = State.settings.sync.lastSyncAt || '1970-01-01T00:00:00.000Z';
+    var data = await Sync.request('/api/habits/sync?since=' + encodeURIComponent(since));
+    var n = 0;
+    n += Sync.merge('habits', data.habits);
+    n += Sync.merge('checkins', data.checkins);
+    n += Sync.merge('moods', data.moods);
+    return n;
+  },
+
+  push: async function () {
+    var since = State.settings.sync.lastSyncAt || '1970-01-01T00:00:00.000Z';
+    var newer = function (arr) {
+      return arr.filter(function (x) { return (Date.parse(x.updated_at || 0) || 0) > Date.parse(since); });
+    };
+    var payload = {
+      habits: newer(State.habits),
+      checkins: newer(State.checkins),
+      moods: newer(State.moods),
+      client_time: nowISO()
+    };
+    return await Sync.request('/api/habits/sync', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  run: async function (silent) {
+    if (!Sync.configured()) {
+      if (!silent) toast('请先开启云同步并填写接口地址');
+      return;
+    }
+    UI.syncState = 'busy';
+    renderTopbar();
+    try {
+      var pulled = await Sync.pull();
+      await Sync.push();
+      State.settings.sync.lastSyncAt = nowISO();
+      State.habits = State.habits.map(normalizeHabit);
+      save();
+      UI.syncState = 'ok';
+      if (!silent) toast(pulled ? '已同步，合并 ' + pulled + ' 条远端变更' : '已同步，无远端变更');
+    } catch (e) {
+      UI.syncState = 'err';
+      if (!silent) toast('同步失败：' + (e && e.message ? e.message : '网络不可达'));
+    }
+    renderTopbar();
+    render();
+  }
+};
+
+/* ============================ 8. 渲染：通用 ============================ */
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(el._t);
+  el._t = setTimeout(function () { el.classList.remove('on'); }, 2200);
+}
+
+/** 撒花：仅在打卡从未完成变为完成时触发，尊重 reduced-motion */
+function confettiAt(x, y) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var colors = [State.settings.accentColor, Theme.heat[3], Theme.heat[4], State.settings.accentColor];
+  for (var i = 0; i < 14; i++) {
+    (function (i) {
+      var d = document.createElement('div');
+      d.className = 'confetti';
+      d.style.left = x + 'px';
+      d.style.top = y + 'px';
+      d.style.background = colors[i % colors.length];
+      document.body.appendChild(d);
+      var ang = (Math.PI * 2 * i) / 14 + Math.random() * 0.5;
+      var dist = 46 + Math.random() * 58;
+      var dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 26;
+      d.animate(
+        [
+          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(' + dx + 'px,' + (dy + 60) + 'px) scale(.4) rotate(' + (Math.random() * 360) + 'deg)', opacity: 0 }
+        ],
+        { duration: 760 + Math.random() * 320, easing: 'cubic-bezier(.2,.7,.3,1)' }
+      );
+      setTimeout(function () { d.remove(); }, 1200);
+    })(i);
+  }
+}
+
+function renderTopbar() {
+  var s = State.settings;
+  var t = todayStr();
+  var d = parseDate(t);
+  var initial = (s.avatarText || s.nickname || '旅').trim().slice(0, 2);
+  var dotCls = { idle: '', ok: 'ok', warn: 'warn', err: 'err', busy: 'busy' }[UI.syncState] || '';
+  var syncTxt = { idle: '离线本地', ok: '已同步', warn: '待同步', err: '同步失败', busy: '同步中' }[UI.syncState] || '离线本地';
+
+  document.getElementById('topbar').innerHTML =
+    '<div class="avatar" style="background:' + esc(s.accentColor) + ';color:' + esc(Theme.accentInk) + '">' + esc(initial) + '</div>' +
+    '<div class="who">' +
+      '<b>' + esc(s.nickname || '旅人') + '</b>' +
+      '<small>' + (d.getMonth() + 1) + '月' + d.getDate() + '日 周' + WEEK_CN[d.getDay()] + ' · ' + esc(syncTxt) + '</small>' +
+    '</div>' +
+    '<button class="icon-btn" data-act="sync" title="同步" aria-label="同步">' +
+      '<span class="sync-dot ' + dotCls + '"></span>' +
+    '</button>';
+}
+
+var TABS = [
+  { key: 'today',    label: '今日', icon: 'home' },
+  { key: 'habits',   label: '习惯', icon: 'list' },
+  { key: 'stats',    label: '统计', icon: 'chart' },
+  { key: 'settings', label: '我的', icon: 'user' }
+];
+
+function renderTabbar() {
+  document.getElementById('tabbar').innerHTML = TABS.map(function (t) {
+    return '<button class="tab' + (UI.tab === t.key ? ' on' : '') + '" data-act="tab" data-tab="' + t.key + '">' +
+      icon(t.icon, 22) + '<span>' + t.label + '</span></button>';
+  }).join('');
+}
+
+function render() {
+  applyTheme();
+  renderTopbar();
+  renderTabbar();
+  var v = document.getElementById('view');
+  if (UI.tab === 'today') v.innerHTML = viewToday();
+  else if (UI.tab === 'habits') v.innerHTML = viewHabits();
+  else if (UI.tab === 'stats') v.innerHTML = viewStats();
+  else v.innerHTML = viewSettings();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+/* ============================ 9. 页面：今日 ============================ */
+
+function ringSvg(pct) {
+  var r = 52, c = 2 * Math.PI * r;
+  var off = c * (1 - Math.max(0, Math.min(1, pct)));
+  return '<svg width="128" height="128" viewBox="0 0 128 128">' +
+    '<circle cx="64" cy="64" r="' + r + '" fill="none" stroke="' + esc(Theme.surface3) + '" stroke-width="12"/>' +
+    '<circle cx="64" cy="64" r="' + r + '" fill="none" stroke="' + esc(State.settings.accentColor) + '" stroke-width="12" ' +
+      'stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" ' +
+      'style="transition:stroke-dashoffset .6s cubic-bezier(.22,.9,.28,1)"/>' +
+    '</svg>';
+}
+
+function viewToday() {
+  var t = todayStr();
+  var list = habitsOn(t);
+  var done = dayDoneCount(t);
+  var pct = list.length ? done / list.length : 0;
+  var streak = globalStreak();
+  var d = parseDate(t);
+
+  var html = '';
+
+  // 进度环 + 连续天数
+  html += '<div class="card" style="margin-top:14px">' +
+    '<div class="ring-wrap">' +
+      '<div class="ring">' + ringSvg(pct) +
+        '<div class="ring-txt"><b>' + Math.round(pct * 100) + '%</b><span>' + done + ' / ' + list.length + ' 已完成</span></div>' +
+      '</div>' +
+      '<div class="grow">' +
+        '<div style="font-size:19px;font-weight:800;line-height:1.25">' + greet() + '</div>' +
+        '<div class="muted" style="margin-top:4px">' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · 周' + WEEK_CN[d.getDay()] + '</div>' +
+        '<div class="inset" style="margin-top:12px;display:flex;align-items:center;gap:10px">' +
+          icon('flame', 22, '') +
+          '<div><b style="font-size:17px;font-weight:800">' + streak + '</b> <span class="tiny">天连续全勤</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  // 心情
+  var mood = getMood(t);
+  html += '<div class="sec-title">今天心情如何</div>' +
+    '<div class="card"><div class="moods">' +
+    [1, 2, 3, 4, 5].map(function (sc) {
+      return '<button class="mood' + (mood && mood.score === sc ? ' on' : '') + '" data-act="mood" data-score="' + sc + '" aria-label="心情 ' + sc + '">' +
+        moodFace(sc, 30) + '<span>' + ['低落', '有点丧', '平静', '不错', '超棒'][sc - 1] + '</span></button>';
+    }).join('') +
+    '</div></div>';
+
+  // 打卡卡片
+  html += '<div class="sec-title">今日打卡 <span class="more">' +
+    (list.length ? done + ' / ' + list.length : '今天没有安排') + '</span></div>';
+
+  if (!list.length) {
+    html += '<div class="card"><div class="empty">' + icon('sun', 34) +
+      '<div>今天没有需要打卡的习惯</div>' +
+      '<div class="tiny" style="margin-top:6px">去「习惯」页添加一个吧</div></div></div>';
+  } else {
+    html += '<div class="habit-grid">' + list.map(habitCard).join('') + '</div>';
+  }
+
+  return html;
+}
+
+function greet() {
+  var h = new Date().getHours();
+  if (h < 6) return '夜深了，早点休息';
+  if (h < 11) return '早上好，慢慢来';
+  if (h < 14) return '中午好，歇一会儿';
+  if (h < 18) return '下午好，继续加油';
+  if (h < 22) return '晚上好，收个尾吧';
+  return '夜深了，照顾好自己';
+}
+
+/** 单张习惯卡片：四种打卡方式各自的交互控件 */
+function habitCard(h) {
+  var t = todayStr();
+  var c = getCheckin(h.id, t);
+  var done = isDone(h, t);
+  var prog = progressOf(h, t);
+  var streak = habitStreak(h);
+  var val = c ? c.value : 0;
+
+  var sub = freqLabel(h) + ' · 连续 ' + streak + ' 天';
+  if (h.goal_id) {
+    var g = null;
+    for (var i = 0; i < State.goals.length; i++) if (State.goals[i].id === h.goal_id) g = State.goals[i];
+    if (g) sub += ' · ' + g.title;
+  }
+
+  var body = '';
+
+  if (h.type === 'check') {
+    body = '<button class="check-pad' + (done ? ' done' : '') + '" data-act="toggle-check" data-id="' + h.id + '" ' +
+      'style="--habit-color:' + esc(h.color) + '">' +
+      icon(done ? 'check' : 'plus', 20) +
+      '<span>' + (done ? '今日已完成' : '点击打卡') + '</span></button>';
+  } else if (h.type === 'count' || h.type === 'duration') {
+    var unit = h.unit || (h.type === 'duration' ? '分钟' : '次');
+    var steps = h.type === 'duration' ? [5, 15, 25] : [1, 2, 5];
+    body =
+      '<div class="habit-val"><b>' + val + '</b><span>/ ' + h.target + ' ' + esc(unit) + '</span></div>' +
+      '<div class="bar"><i style="width:' + (prog * 100).toFixed(1) + '%;background:' + esc(h.color) + '"></i></div>' +
+      '<div class="stepper">' +
+        '<button class="icon-btn" data-act="dec" data-id="' + h.id + '" aria-label="减少">' + icon('minus', 18) + '</button>' +
+        '<div class="num">' + (h.type === 'duration' ? fmtMin(val) : val) + '<small>' + esc(unit) + '</small></div>' +
+        '<button class="icon-btn" data-act="inc" data-id="' + h.id + '" aria-label="增加">' + icon('plus', 18) + '</button>' +
+      '</div>' +
+      '<div class="row" style="gap:6px;margin-top:2px">' +
+        steps.map(function (s) {
+          return '<button class="btn sm ghost" style="flex:1;padding:0 6px" data-act="add" data-id="' + h.id + '" data-n="' + s + '">+' + s + '</button>';
+        }).join('') +
+      '</div>';
+  } else { // timerange
+    body =
+      '<div class="time-row">' +
+        '<input type="time" value="' + esc((c && c.start_time) || '') + '" data-act="tstart" data-id="' + h.id + '" aria-label="开始时间">' +
+        '<span class="sep">至</span>' +
+        '<input type="time" value="' + esc((c && c.end_time) || '') + '" data-act="tend" data-id="' + h.id + '" aria-label="结束时间">' +
+      '</div>' +
+      (done
+        ? '<div class="inset-2" style="font-size:12px;text-align:center;font-weight:600;color:' + esc(h.color) + '">' +
+            '已记录 ' + esc(c.start_time) + ' – ' + esc(c.end_time) + ' · ' + fmtMin(rangeMinutes(c)) + '</div>'
+        : '<div class="muted tiny" style="text-align:center">填写起止时间即完成打卡</div>');
+  }
+
+  var miniWeek = h.size === 'lg'
+    ? '<div class="mini-week">' + [6, 5, 4, 3, 2, 1, 0].map(function (k) {
+        var d = addDays(t, -k);
+        var p = progressOf(h, d);
+        var lvl = p <= 0 ? -1 : p < 0.34 ? 1 : p < 0.67 ? 2 : p < 1 ? 3 : 4;
+        var bg = lvl < 0 ? Theme.heatEmpty : Theme.heat[lvl];
+        return '<i title="' + d + '" style="background:' + esc(bg) + '"></i>';
+      }).join('') + '</div>'
+    : '';
+
+  return '<div class="habit-card size-' + h.size + (done ? ' is-done' : '') + '" style="--habit-color:' + esc(h.color) + '">' +
+    '<div class="habit-tools">' +
+      '<button class="icon-btn sm" data-act="edit" data-id="' + h.id + '" title="编辑" aria-label="编辑">' + icon('edit', 15) + '</button>' +
+      '<button class="icon-btn sm" data-act="del" data-id="' + h.id + '" title="删除" aria-label="删除">' + icon('trash', 15) + '</button>' +
+    '</div>' +
+    '<div class="habit-head">' +
+      '<div class="habit-ico">' + icon(h.icon, 21) + '</div>' +
+      '<div class="grow" style="min-width:0">' +
+        '<div class="habit-title">' + esc(h.name) + '</div>' +
+        '<div class="habit-sub">' + esc(sub) + '</div>' +
+      '</div>' +
+    '</div>' +
+    body + miniWeek +
+  '</div>';
+}
+
+function fmtMin(m) {
+  m = Math.round(Number(m) || 0);
+  if (m < 60) return m + ' 分';
+  return Math.floor(m / 60) + ' 时 ' + (m % 60) + ' 分';
+}
+function rangeMinutes(c) {
+  if (!c || !c.start_time || !c.end_time) return 0;
+  var a = String(c.start_time).split(':').map(Number);
+  var b = String(c.end_time).split(':').map(Number);
+  var m = (b[0] * 60 + b[1]) - (a[0] * 60 + a[1]);
+  return m > 0 ? m : 0;
+}
+
+/* ============================ 10. 页面：习惯管理 ============================ */
+
+function viewHabits() {
+  var all = liveHabits().slice().sort(function (a, b) {
+    if (a.archived !== b.archived) return a.archived ? 1 : -1;
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+
+  var html = '<div class="card" style="margin-top:14px">' +
+    '<div class="row">' +
+      '<div class="grow"><b style="font-size:16px">习惯管理</b>' +
+      '<div class="muted">共 ' + liveHabits().length + ' 个习惯，点击卡片可直接编辑</div></div>' +
+      '<button class="btn primary" data-act="new-habit">' + icon('plus', 17) + '新增</button>' +
+    '</div>' +
+  '</div>';
+
+  html += '<div class="sec-title">进行中</div>';
+  var act = all.filter(function (h) { return !h.archived; });
+  html += act.length
+    ? '<div class="habit-grid">' + act.map(habitManageCard).join('') + '</div>'
+    : '<div class="card"><div class="empty">' + icon('list', 32) + '<div>还没有习惯</div>' +
+      '<div class="tiny" style="margin-top:6px">点右上角「新增」开始吧</div></div></div>';
+
+  var arch = all.filter(function (h) { return h.archived; });
+  if (arch.length) {
+    html += '<div class="sec-title">已归档</div>' +
+      '<div class="habit-grid">' + arch.map(habitManageCard).join('') + '</div>';
+  }
+
+  return html;
+}
+
+function habitManageCard(h) {
+  var t = todayStr();
+  var streak = habitStreak(h);
+  var typeLabel = (CHECK_TYPES.filter(function (x) { return x.key === h.type; })[0] || {}).label || '';
+  return '<div class="habit-card size-' + h.size + (h.archived ? ' is-archived' : '') + '" style="--habit-color:' + esc(h.color) + '" data-act="edit" data-id="' + h.id + '" role="button" tabindex="0">' +
+    '<div class="habit-tools">' +
+      '<button class="icon-btn sm" data-act="archive" data-id="' + h.id + '" title="' + (h.archived ? '恢复' : '归档') + '">' + icon(h.archived ? 'sync' : 'draw', 15) + '</button>' +
+      '<button class="icon-btn sm" data-act="del" data-id="' + h.id + '" title="删除">' + icon('trash', 15) + '</button>' +
+    '</div>' +
+    '<div class="habit-head">' +
+      '<div class="habit-ico">' + icon(h.icon, 21) + '</div>' +
+      '<div class="grow" style="min-width:0">' +
+        '<div class="habit-title">' + esc(h.name) + '</div>' +
+        '<div class="habit-sub">' + esc(typeLabel) + ' · ' + esc(freqLabel(h)) + ' · 连续 ' + streak + ' 天</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="row" style="gap:6px;flex-wrap:wrap">' +
+      '<span class="inset-2" style="font-size:11px">' + esc(SIZES.filter(function (s) { return s.key === h.size; })[0].label) + '</span>' +
+      (h.category_id ? '<span class="inset-2" style="font-size:11px">' + esc(catName(h.category_id)) + '</span>' : '') +
+      (isDone(h, t) ? '<span class="inset-2" style="font-size:11px;color:' + esc(h.color) + '">今日已完成</span>' : '') +
+    '</div>' +
+  '</div>';
+}
+
+function catName(id) {
+  for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].id === id) return CATEGORIES[i].name;
+  return '';
+}
+
+/* ============================ 11. 页面：统计 ============================ */
+
+function viewStats() {
+  var t = todayStr();
+  var html = '<div class="card" style="margin-top:14px">' +
+    '<div class="row" style="gap:14px">' +
+      statBlock('连续全勤', globalStreak() + ' 天') +
+      statBlock('累计打卡', totalCheckins() + ' 次') +
+      statBlock('完美一日', perfectDays() + ' 天') +
+    '</div>' +
+  '</div>';
+
+  // 30 天热力图
+  html += '<div class="sec-title">近 30 天热度 <span class="more">颜色越深完成越多</span></div>';
+  html += '<div class="card">' + heatmapSvg(30) +
+    '<div class="heat-legend" style="margin-top:12px;justify-content:flex-end">' +
+      '<span>少</span>' +
+      [Theme.heatEmpty].concat(Theme.heat.slice(1)).map(function (c) {
+        return '<i style="background:' + esc(c) + '"></i>';
+      }).join('') +
+      '<span>多</span>' +
+    '</div></div>';
+
+  // 周趋势
+  html += '<div class="sec-title">本周完成趋势</div>';
+  html += '<div class="card">' + weekTrendSvg() + '</div>';
+
+  // 心情曲线
+  html += '<div class="sec-title">心情曲线 <span class="more">近 30 天</span></div>';
+  html += '<div class="card">' + moodCurveSvg(30) + '</div>';
+
+  // 各习惯战绩
+  var list = activeHabits();
+  if (list.length) {
+    html += '<div class="sec-title">各习惯战绩</div><div class="card stack">' +
+      list.map(function (h) {
+        var best = habitBestStreak(h);
+        var cur = habitStreak(h);
+        var cnt = State.checkins.filter(function (c) {
+          return c.habit_id === h.id && (c.value > 0 || (c.start_time && c.end_time));
+        }).length;
+        var p30 = last30Rate(h);
+        return '<div class="row" style="gap:12px">' +
+          '<div class="habit-ico" style="--habit-color:' + esc(h.color) + '">' + icon(h.icon, 19) + '</div>' +
+          '<div class="grow"><div style="font-weight:700">' + esc(h.name) + '</div>' +
+            '<div class="muted tiny">连续 ' + cur + ' 天 · 最长 ' + best + ' 天 · 累计 ' + cnt + ' 次</div></div>' +
+          '<div style="text-align:right"><b style="font-size:16px">' + Math.round(p30 * 100) + '%</b>' +
+            '<div class="muted tiny">30 天达成</div></div>' +
+        '</div>';
+      }).join('') + '</div>';
+  }
+
+  // 徽章
+  html += '<div class="sec-title">成就徽章</div>';
+  html += '<div class="card"><div class="badges">' + badgeList().map(function (b) {
+    return '<div class="badge' + (b.got ? ' on' : '') + '">' +
+      icon(b.icon, 26) + '<b>' + esc(b.name) + '</b><small>' + esc(b.desc) + '</small></div>';
+  }).join('') + '</div></div>';
+
+  return html;
+}
+
+function statBlock(label, value) {
+  return '<div class="inset grow" style="text-align:center">' +
+    '<b style="font-size:19px;font-weight:800;display:block">' + esc(value) + '</b>' +
+    '<span class="tiny" style="color:var(--text-3)">' + esc(label) + '</span></div>';
+}
+
+/** 热力图：按周对齐，列 = 周，行 = 星期（起始日跟随 weekStart） */
+function heatmapSvg(days) {
+  var t = todayStr();
+  var start = addDays(t, -(days - 1));
+  var order = State.settings.weekStart === 'sun'
+    ? [0, 1, 2, 3, 4, 5, 6]
+    : [1, 2, 3, 4, 5, 6, 0];
+
+  // 起点向前补齐到所在周的第一天
+  var s = start;
+  var guard = 0;
+  while (order.indexOf(parseDate(s).getDay()) !== 0 && guard++ < 7) s = addDays(s, -1);
+
+  var cells = [];
+  var d = s;
+  var g2 = 0;
+  while (d <= t && g2++ < 400) {
+    var isFuture = false;
+    var rate = d < start ? null : dayCompletion(d);
+    var lvl = rate == null ? -1 : (rate <= 0 ? 0 : rate < 0.34 ? 1 : rate < 0.67 ? 2 : rate < 1 ? 3 : 4);
+    var bg = rate == null ? 'transparent' : (lvl === 0 ? Theme.heatEmpty : Theme.heat[lvl]);
+    cells.push('<i title="' + d + (rate == null ? '' : ' · ' + Math.round(rate * 100) + '%') + '" ' +
+      'style="background:' + esc(bg) + (rate == null ? ';opacity:.25' : '') + '"></i>');
+    d = addDays(d, 1);
+  }
+
+  return '<div class="heat">' + cells.join('') + '</div>' +
+    '<div class="muted tiny" style="margin-top:10px;text-align:right">' +
+      esc(start) + ' → ' + esc(t) + '（列为一周，行为周' + (State.settings.weekStart === 'sun' ? '日' : '一') + '起）</div>';
+}
+
+function last30Rate(h) {
+  var t = todayStr(), n = 0, tot = 0;
+  for (var k = 0; k < 30; k++) {
+    var d = addDays(t, -k);
+    if (d < h.start_date || !isScheduledOn(h, d)) continue;
+    tot++;
+    if (isDone(h, d)) n++;
+  }
+  return tot ? n / tot : 0;
+}
+
+/** 周趋势：最近 7 天完成率柱状图（内联 SVG，无依赖） */
+function weekTrendSvg() {
+  var t = todayStr();
+  var data = [];
+  for (var k = 6; k >= 0; k--) {
+    var d = addDays(t, -k);
+    data.push({ date: d, rate: dayCompletion(d), n: dayDoneCount(d), total: habitsOn(d).length });
+  }
+  var W = 320, H = 132, pad = 18;
+  var bw = (W - pad * 2) / 7;
+  var bars = data.map(function (x, i) {
+    var h = Math.max(3, x.rate * (H - 48));
+    var bx = pad + i * bw + bw * 0.18;
+    var bwid = bw * 0.64;
+    var by = H - 30 - h;
+    var isToday = i === 6;
+    return '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bwid.toFixed(1) + '" height="' + h.toFixed(1) + '" ' +
+      'rx="5" fill="' + (isToday ? State.settings.accentColor : mix(State.settings.accentColor, Theme.surface3, 0.42)) + '"/>' +
+      '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (by - 5).toFixed(1) + '" text-anchor="middle" ' +
+        'font-size="9" fill="' + Theme.text3 + '">' + Math.round(x.rate * 100) + '</text>' +
+      '<text x="' + (bx + bwid / 2).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle" ' +
+        'font-size="10" fill="' + Theme.text3 + '">' + WEEK_CN[parseDate(x.date).getDay()] + '</text>';
+  }).join('');
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="近 7 天完成趋势">' +
+    '<line x1="' + pad + '" y1="' + (H - 30) + '" x2="' + (W - pad) + '" y2="' + (H - 30) + '" stroke="' + Theme.line + '" stroke-width="1"/>' +
+    bars + '</svg>' +
+    '<div class="muted tiny" style="margin-top:6px;text-align:center">柱高 = 当日完成率，最右侧为今天</div>';
+}
+
+/** 心情曲线：折线 + 数据点，缺失日期断开 */
+function moodCurveSvg(days) {
+  var t = todayStr();
+  var pts = [];
+  for (var k = days - 1; k >= 0; k--) {
+    var d = addDays(t, -k);
+    var m = getMood(d);
+    pts.push({ date: d, score: m ? m.score : null });
+  }
+  var W = 320, H = 132, padX = 16, padY = 16;
+  var innerW = W - padX * 2, innerH = H - padY * 2 - 12;
+  var xOf = function (i) { return padX + (pts.length <= 1 ? innerW / 2 : (innerW * i) / (pts.length - 1)); };
+  var yOf = function (s) { return padY + ((5 - s) / 4) * innerH; };
+
+  // 网格与刻度
+  var grid = [1, 3, 5].map(function (s) {
+    return '<line x1="' + padX + '" y1="' + yOf(s).toFixed(1) + '" x2="' + (W - padX) + '" y2="' + yOf(s).toFixed(1) +
+      '" stroke="' + Theme.line + '" stroke-width="1" stroke-dasharray="3 4"/>';
+  }).join('');
+
+  // 分段折线：遇到缺失断开，避免用直线"伪造"没记录的日子
+  var segs = [], cur = [];
+  pts.forEach(function (p, i) {
+    if (p.score == null) { if (cur.length > 1) segs.push(cur); cur = []; }
+    else cur.push([xOf(i), yOf(p.score), p]);
+  });
+  if (cur.length > 1) segs.push(cur);
+
+  var paths = segs.map(function (seg) {
+    return '<polyline fill="none" stroke="' + State.settings.accentColor + '" stroke-width="2.2" ' +
+      'stroke-linecap="round" stroke-linejoin="round" points="' +
+      seg.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '"/>';
+  }).join('');
+
+  var dots = pts.map(function (p, i) {
+    if (p.score == null) return '';
+    return '<circle cx="' + xOf(i).toFixed(1) + '" cy="' + yOf(p.score).toFixed(1) + '" r="2.8" fill="' + State.settings.accentColor + '"/>';
+  }).join('');
+
+  var valid = pts.filter(function (p) { return p.score != null; });
+  var avg = valid.length ? valid.reduce(function (a, p) { return a + p.score; }, 0) / valid.length : 0;
+
+  if (!valid.length) {
+    return '<div class="empty">' + icon('heart', 30) + '<div>还没有心情记录</div>' +
+      '<div class="tiny" style="margin-top:4px">去「今日」页选一个心情吧</div></div>';
+  }
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="近 30 天心情曲线">' +
+    grid + paths + dots + '</svg>' +
+    '<div class="row" style="margin-top:8px;justify-content:space-between">' +
+      '<span class="muted tiny">' + esc(addDays(t, -(days - 1))) + '</span>' +
+      '<span class="muted tiny">平均 ' + avg.toFixed(1) + ' / 5（' + valid.length + ' 天有记录）</span>' +
+      '<span class="muted tiny">今天</span>' +
+    '</div>';
+}
+
+/* ============================ 12. 页面：设置 ============================ */
+
+function viewSettings() {
+  var s = State.settings;
+  var html = '';
+
+  // 个人信息
+  html += '<div class="card" style="margin-top:14px">' +
+    '<div class="row" style="gap:14px">' +
+      '<div class="avatar" style="width:56px;height:56px;font-size:20px;background:' + esc(s.accentColor) + ';color:' + esc(Theme.accentInk) + '">' +
+        esc((s.avatarText || s.nickname || '旅').trim().slice(0, 2)) + '</div>' +
+      '<div class="grow"><b style="font-size:16px">' + esc(s.nickname || '旅人') + '</b>' +
+        '<div class="muted tiny">共 ' + activeHabits().length + ' 个习惯 · 累计打卡 ' + totalCheckins() + ' 次</div></div>' +
+    '</div>' +
+    '<div class="field" style="margin-top:14px"><label>昵称</label>' +
+      '<input class="input" id="set-nick" value="' + esc(s.nickname) + '" maxlength="16" placeholder="给自己取个名字"></div>' +
+    '<div class="field"><label>头像文字（留空则取昵称前两字）</label>' +
+      '<input class="input" id="set-avatar" value="' + esc(s.avatarText) + '" maxlength="2" placeholder="如：小满"></div>' +
+  '</div>';
+
+  // 外观
+  html += '<div class="sec-title">外观</div><div class="card">' +
+    '<div class="field"><label>主题背景（卡片底色会随之融合派生）</label>' +
+      '<div class="opts cols-4">' + PRESET_THEMES.map(function (p) {
+        var on = p.bg.toLowerCase() === s.backgroundColor.toLowerCase() && p.accent.toLowerCase() === s.accentColor.toLowerCase();
+        return '<button class="opt' + (on ? ' on' : '') + '" data-act="theme" data-bg="' + p.bg + '" data-accent="' + p.accent + '">' +
+          '<span class="swatch" style="background:linear-gradient(135deg,' + p.bg + ' 0 52%,' + p.accent + ' 52% 100%)"></span>' +
+          '<span>' + p.name + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="row" style="margin-top:10px">' +
+        '<input type="color" class="input" style="flex:1;padding:6px" id="set-bg" value="' + esc(s.backgroundColor) + '">' +
+        '<input type="color" class="input" style="flex:1;padding:6px" id="set-accent" value="' + esc(s.accentColor) + '">' +
+      '</div>' +
+      '<div class="muted tiny" style="margin-top:6px">左侧取背景色，右侧取强调色；两者共同参与卡片与内嵌方块的底色派生。</div>' +
+    '</div>' +
+    '<div class="field"><label>强调色快捷选择</label>' +
+      '<div class="opts cols-6" style="grid-template-columns:repeat(6,1fr)">' + PRESET_ACCENTS.map(function (a) {
+        return '<button class="opt' + (a.toLowerCase() === s.accentColor.toLowerCase() ? ' on' : '') + '" data-act="accent" data-accent="' + a + '" style="min-height:36px">' +
+          '<span class="swatch" style="width:18px;height:18px;background:' + a + '"></span></button>';
+      }).join('') + '</div>' +
+    '</div>' +
+    '<div class="field"><label>每周起始日</label>' +
+      '<div class="opts cols-2" style="grid-template-columns:1fr 1fr">' +
+        ['mon', 'sun'].map(function (k) {
+          return '<button class="opt' + (s.weekStart === k ? ' on' : '') + '" data-act="weekstart" data-v="' + k + '">' + (k === 'mon' ? '周一' : '周日') + '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  // 云同步
+  var sy = s.sync;
+  html += '<div class="sec-title">数据在线存储与双向同步</div><div class="card">' +
+    '<div class="row" style="margin-bottom:12px">' +
+      '<div class="grow"><b>启用云同步</b>' +
+        '<div class="muted tiny">关闭时本应用完全离线运行，数据只存本机</div></div>' +
+      '<button class="btn sm' + (sy.enabled ? ' primary' : '') + '" data-act="sync-toggle">' + (sy.enabled ? '已开启' : '已关闭') + '</button>' +
+    '</div>' +
+    '<div class="field"><label>接口地址（API Base）</label>' +
+      '<input class="input" id="set-apibase" value="' + esc(sy.apiBase) + '" placeholder="留空=同源 /api，如 http://127.0.0.1:8000" inputmode="url"></div>' +
+    '<div class="field"><label>访问令牌（可选，Bearer Token）</label>' +
+      '<input class="input" id="set-token" value="' + esc(sy.token) + '" placeholder="留空表示服务端免鉴权" type="password"></div>' +
+    '<div class="row" style="gap:8px">' +
+      '<button class="btn primary grow" data-act="sync">' + icon('sync', 17) + '立即同步</button>' +
+    '</div>' +
+    '<div class="inset" style="margin-top:12px">' +
+      '<div class="kv"><span class="k">上次同步</span><span class="v">' + (sy.lastSyncAt ? esc(new Date(sy.lastSyncAt).toLocaleString('zh-CN')) : '从未同步') + '</span></div>' +
+      '<div class="kv"><span class="k">合并策略</span><span class="v">updated_at 后写覆盖</span></div>' +
+    '</div>' +
+    '<div class="muted tiny" style="margin-top:8px">' +
+      '约定接口：<code>GET /api/habits/sync?since=&lt;ISO&gt;</code> 拉取远端增量，' +
+      '<code>POST /api/habits/sync</code> 推送本地增量。删除以 <code>deleted_at</code> 墓碑传播，不做物理删除。' +
+      '接口不可达时自动降级为纯本地，不影响任何功能。' +
+    '</div>' +
+  '</div>';
+
+  // 数据管理
+  html += '<div class="sec-title">数据管理</div><div class="card stack">' +
+    '<button class="btn block" data-act="export">' + icon('download', 17) + '导出为 JSON 备份</button>' +
+    '<button class="btn block" data-act="import">' + icon('upload', 17) + '从 JSON 备份导入</button>' +
+    '<button class="btn block" data-act="clear-seed">' + icon('trash', 17) + '清空示例数据</button>' +
+    '<button class="btn block danger" data-act="clear-all">' + icon('trash', 17) + '清空全部数据</button>' +
+    '<div class="muted tiny">导入支持「合并」与「覆盖」两种策略，导入前会自动校验文件结构。</div>' +
+  '</div>';
+
+  html += '<div class="sec-title">关于</div><div class="card">' +
+    '<div class="kv"><span class="k">存储位置</span><span class="v">浏览器 localStorage</span></div>' +
+    '<div class="kv"><span class="k">外部依赖</span><span class="v">无，断网可用</span></div>' +
+    '<div class="kv"><span class="k">数据契约</span><span class="v">Habit / HabitCheckin</span></div>' +
+    '<div class="muted tiny" style="margin-top:10px">单文件版本，CSS / JS / SVG 全部内联。' +
+    '字段沿用 snake_case 并带软删除标记，便于后续直接对接 Reach 服务端 Habit 域。</div>' +
+  '</div>';
+
+  return html;
+}
+
+/* ============================ 13. 弹层：习惯编辑 ============================ */
+
+function openSheet(habitId) {
+  var h = habitId ? findHabit(habitId) : null;
+  UI.editing = h ? JSON.parse(JSON.stringify(h)) : normalizeHabit({
+    name: '', icon: 'water', color: PRESET_ACCENTS[Math.floor(Math.random() * PRESET_ACCENTS.length)],
+    type: 'check', target: 1, unit: '次', frequency: 'daily', size: 'md',
+    start_date: todayStr(), sort_order: liveHabits().length
+  });
+  UI.sheet = 'habit';
+  renderSheet();
+  document.getElementById('sheet').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSheet() {
+  UI.sheet = null;
+  UI.editing = null;
+  document.getElementById('sheet').hidden = true;
+  document.body.style.overflow = '';
+}
+
+function renderSheet() {
+  var e = UI.editing;
+  var isNew = !findHabit(e.id);
+  var el = document.getElementById('sheet');
+
+  var html = '<div class="sheet" role="dialog" aria-modal="true">' +
+    '<div class="sheet-grip"></div>' +
+    '<h3>' + (isNew ? '新增习惯' : '编辑习惯') + '</h3>' +
+    '<p class="sheet-sub">四种打卡方式：打勾 / 计数 / 时长 / 时间段</p>';
+
+  html += '<div class="field"><label>名称</label>' +
+    '<input class="input" id="f-name" value="' + esc(e.name) + '" maxlength="20" placeholder="例如：喝够水"></div>';
+
+  html += '<div class="field"><label>打卡方式</label><div class="opts cols-4">' +
+    CHECK_TYPES.map(function (t) {
+      return '<button class="opt' + (e.type === t.key ? ' on' : '') + '" data-act="f-type" data-v="' + t.key + '">' +
+        '<span>' + t.label + '</span></button>';
+    }).join('') + '</div></div>';
+
+  // 目标值：计数/时长需要，打勾/时间段不需要
+  if (e.type === 'count' || e.type === 'duration') {
+    html += '<div class="field"><label>每日目标</label>' +
+      '<div class="row" style="gap:8px">' +
+        '<input class="input" id="f-target" type="number" min="1" max="9999" value="' + esc(e.target) + '" style="flex:1">' +
+        '<input class="input" id="f-unit" value="' + esc(e.unit) + '" maxlength="6" placeholder="单位" style="flex:0 0 96px">' +
+      '</div>' +
+      '<div class="muted tiny" style="margin-top:6px">' +
+        (e.type === 'duration' ? '时长按分钟累计，卡片提供 +5/+15/+25 快捷加时。' : '计数按次累计，卡片提供 +1/+2/+5 快捷键。') +
+      '</div></div>';
+  }
+
+  html += '<div class="field"><label>频率</label><div class="opts cols-4">' +
+    FREQS.map(function (f) {
+      return '<button class="opt' + (e.frequency === f.key ? ' on' : '') + '" data-act="f-freq" data-v="' + f.key + '">' +
+        '<span>' + f.label + '</span></button>';
+    }).join('') + '</div></div>';
+
+  if (e.frequency === 'custom') {
+    var order = State.settings.weekStart === 'sun' ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6, 0];
+    html += '<div class="field"><label>选择星期</label><div class="opts cols-7" style="grid-template-columns:repeat(7,1fr)">' +
+      order.map(function (w) {
+        var on = (e.weekdays || []).indexOf(w) >= 0;
+        return '<button class="opt' + (on ? ' on' : '') + '" data-act="f-weekday" data-v="' + w + '" style="min-height:42px;padding:6px 2px">' +
+          '<span>' + WEEK_CN[w] + '</span></button>';
+      }).join('') + '</div></div>';
+  }
+
+  html += '<div class="field"><label>图标</label><div class="ico-grid">' +
+    HABIT_ICON_KEYS.map(function (k) {
+      return '<button class="opt' + (e.icon === k ? ' on' : '') + '" data-act="f-icon" data-v="' + k + '" aria-label="' + k + '">' +
+        icon(k, 20) + '</button>';
+    }).join('') + '</div></div>';
+
+  html += '<div class="field"><label>卡片颜色</label><div class="opts cols-6" style="grid-template-columns:repeat(6,1fr)">' +
+    PRESET_ACCENTS.map(function (a) {
+      return '<button class="opt' + (e.color.toLowerCase() === a.toLowerCase() ? ' on' : '') + '" data-act="f-color" data-v="' + a + '" style="min-height:38px">' +
+        '<span class="swatch" style="width:20px;height:20px;background:' + a + '"></span></button>';
+    }).join('') + '</div>' +
+    '<div class="row" style="margin-top:8px"><input type="color" class="input" id="f-color-custom" value="' + esc(e.color) + '" style="padding:6px"></div>' +
+  '</div>';
+
+  html += '<div class="field"><label>卡片尺寸</label><div class="opts cols-3">' +
+    SIZES.map(function (s) {
+      var desc = { sm: '紧凑', md: '标准', lg: '跨列' }[s.key];
+      return '<button class="opt' + (e.size === s.key ? ' on' : '') + '" data-act="f-size" data-v="' + s.key + '">' +
+        '<span>' + s.label + '</span><span class="tiny" style="opacity:.7">' + desc + '</span></button>';
+    }).join('') + '</div></div>';
+
+  html += '<div class="field"><label>所属维度</label><div class="opts cols-5" style="grid-template-columns:repeat(5,1fr)">' +
+    CATEGORIES.map(function (c) {
+      return '<button class="opt' + ((e.category_id || '') === c.id ? ' on' : '') + '" data-act="f-cat" data-v="' + c.id + '" style="font-size:11px">' +
+        '<span>' + c.name + '</span></button>';
+    }).join('') + '</div></div>';
+
+  var goalOpts = [{ id: '', title: '不关联' }].concat(State.goals);
+  html += '<div class="field"><label>关联目标</label>' +
+    '<select class="select" id="f-goal">' +
+      goalOpts.map(function (g) {
+        return '<option value="' + esc(g.id) + '"' + ((e.goal_id || '') === g.id ? ' selected' : '') + '>' + esc(g.title) + '</option>';
+      }).join('') +
+    '</select></div>';
+
+  html += '<div class="field"><label>开始日期</label>' +
+    '<input class="input" id="f-start" type="date" value="' + esc(e.start_date) + '"></div>';
+
+  html += '<div class="row" style="gap:10px;margin-top:4px">' +
+    (isNew ? '' : '<button class="btn danger" data-act="f-del" style="flex:0 0 auto">' + icon('trash', 17) + '删除</button>') +
+    '<button class="btn ghost" data-act="close-sheet" style="flex:0 0 auto">取消</button>' +
+    '<button class="btn primary grow" data-act="f-save">' + icon('check', 17) + '保存</button>' +
+  '</div>';
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+/** 从弹层表单收集当前编辑态（不落库） */
+function collectSheet() {
+  var e = UI.editing;
+  var g = function (id) { var el = document.getElementById(id); return el ? el.value : null; };
+  var name = (g('f-name') || '').trim();
+  if (!name) { toast('请填写习惯名称'); return null; }
+  e.name = name;
+  if (e.type === 'count' || e.type === 'duration') {
+    var tv = parseInt(g('f-target'), 10);
+    e.target = tv > 0 ? tv : 1;
+    e.unit = (g('f-unit') || '').trim() || (e.type === 'duration' ? '分钟' : '次');
+  } else {
+    e.target = 1;
+    e.unit = e.type === 'duration' ? '分钟' : '次';
+  }
+  var goalSel = document.getElementById('f-goal');
+  if (goalSel) e.goal_id = goalSel.value || null;
+  var st = g('f-start');
+  if (st) e.start_date = st;
+  return e;
+}
+
+function saveSheet() {
+  var e = collectSheet();
+  if (!e) return;
+  e.updated_at = nowISO();
+  var exist = findHabit(e.id);
+  if (exist) {
+    Object.keys(e).forEach(function (k) { exist[k] = e[k]; });
+  } else {
+    State.habits.push(normalizeHabit(e));
+  }
+  save();
+  closeSheet();
+  render();
+  toast(exist ? '已保存' : '已添加习惯');
+}
+
+/* ============================ 14. 事件 ============================ */
+
+document.addEventListener('click', function (ev) {
+  var el = ev.target.closest('[data-act]');
+  if (!el) return;
+  var act = el.getAttribute('data-act');
+  var id = el.getAttribute('data-id');
+
+  switch (act) {
+    case 'tab':
+      UI.tab = el.getAttribute('data-tab');
+      render();
+      return;
+
+    case 'sync':
+      Sync.run(false);
+      return;
+
+    case 'sync-toggle': {
+      var sy = State.settings.sync;
+      sy.enabled = !sy.enabled;
+      save();
+      applyTheme();
+      render();
+      toast(sy.enabled ? '已开启云同步' : '已关闭，纯本地运行');
+      return;
+    }
+
+    case 'mood': {
+      setMood(todayStr(), parseInt(el.getAttribute('data-score'), 10));
+      render();
+      toast('已记录今天的心情');
+      return;
+    }
+
+    case 'toggle-check': {
+      var h = findHabit(id);
+      if (!h) return;
+      var wasDone = isDone(h, todayStr());
+      setCheckin(h.id, todayStr(), { value: wasDone ? 0 : 1 });
+      if (!wasDone) {
+        var r = el.getBoundingClientRect();
+        confettiAt(r.left + r.width / 2, r.top + r.height / 2);
+      }
+      render();
+      return;
+    }
+
+    case 'inc': {
+      var h2 = findHabit(id);
+      if (!h2) return;
+      bump(h2, h2.type === 'duration' ? 5 : 1, el);
+      return;
+    }
+
+    case 'dec': {
+      var h3 = findHabit(id);
+      if (!h3) return;
+      bump(h3, h3.type === 'duration' ? -5 : -1, el);
+      return;
+    }
+
+    case 'add': {
+      var h4 = findHabit(id);
+      if (!h4) return;
+      bump(h4, parseInt(el.getAttribute('data-n'), 10) || 1, el);
+      return;
+    }
+
+    case 'edit':
+      openSheet(id);
+      return;
+
+    case 'new-habit':
+      openSheet(null);
+      return;
+
+    case 'del': {
+      var h5 = findHabit(id);
+      if (!h5) return;
+      if (!confirm('删除习惯「' + h5.name + '」？\n历史打卡记录会一并移入回收，可在同步时保留墓碑。')) return;
+      // 软删除：保留墓碑，保证多端同步能传播这次删除
+      h5.deleted_at = nowISO();
+      h5.updated_at = nowISO();
+      save();
+      render();
+      toast('已删除「' + h5.name + '」');
+      return;
+    }
+
+    case 'archive': {
+      var h6 = findHabit(id);
+      if (!h6) return;
+      h6.archived = !h6.archived;
+      h6.updated_at = nowISO();
+      save();
+      render();
+      toast(h6.archived ? '已归档' : '已恢复');
+      return;
+    }
+
+    case 'close-sheet':
+      closeSheet();
+      return;
+
+    case 'f-save':
+      saveSheet();
+      return;
+
+    case 'f-del': {
+      var h7 = findHabit(UI.editing.id);
+      if (h7) {
+        h7.deleted_at = nowISO();
+        h7.updated_at = nowISO();
+        save();
+      }
+      closeSheet();
+      render();
+      toast('已删除');
+      return;
+    }
+
+    case 'f-type':
+      UI.editing.type = el.getAttribute('data-v');
+      if (UI.editing.type === 'duration') UI.editing.unit = UI.editing.unit === '次' ? '分钟' : UI.editing.unit;
+      renderSheet();
+      return;
+
+    case 'f-freq':
+      UI.editing.frequency = el.getAttribute('data-v');
+      if (!UI.editing.weekdays.length) UI.editing.weekdays = [1, 2, 3, 4, 5];
+      renderSheet();
+      return;
+
+    case 'f-weekday': {
+      var w = parseInt(el.getAttribute('data-v'), 10);
+      var arr = UI.editing.weekdays || [];
+      var i = arr.indexOf(w);
+      if (i >= 0) arr.splice(i, 1); else arr.push(w);
+      UI.editing.weekdays = arr;
+      renderSheet();
+      return;
+    }
+
+    case 'f-icon':
+      UI.editing.icon = el.getAttribute('data-v');
+      renderSheet();
+      return;
+
+    case 'f-color':
+      UI.editing.color = el.getAttribute('data-v');
+      renderSheet();
+      return;
+
+    case 'f-size':
+      UI.editing.size = el.getAttribute('data-v');
+      renderSheet();
+      return;
+
+    case 'f-cat':
+      UI.editing.category_id = el.getAttribute('data-v');
+      renderSheet();
+      return;
+
+    case 'theme': {
+      State.settings.backgroundColor = el.getAttribute('data-bg');
+      State.settings.accentColor = el.getAttribute('data-accent');
+      save();
+      render();
+      return;
+    }
+
+    case 'accent':
+      State.settings.accentColor = el.getAttribute('data-accent');
+      save();
+      render();
+      return;
+
+    case 'weekstart':
+      State.settings.weekStart = el.getAttribute('data-v');
+      save();
+      render();
+      return;
+
+    case 'export':
+      doExport();
+      return;
+
+    case 'import':
+      document.getElementById('file-input').click();
+      return;
+
+    case 'clear-seed': {
+      var seeded = State.habits.filter(function (x) { return x.seed && !x.deleted_at; });
+      if (!seeded.length) { toast('没有示例数据'); return; }
+      if (!confirm('清空 ' + seeded.length + ' 个示例习惯及其打卡记录？\n你自己创建的习惯不受影响。')) return;
+      var nowT = nowISO();
+      seeded.forEach(function (x) { x.deleted_at = nowT; x.updated_at = nowT; });
+      save();
+      render();
+      toast('示例数据已清空');
+      return;
+    }
+
+    case 'clear-all':
+      if (!confirm('将清空全部习惯、打卡记录、心情与设置。\n建议先导出备份。确定继续？')) return;
+      if (!confirm('再次确认：此操作不可撤销。')) return;
+      localStorage.removeItem(STORE_KEY);
+      State = blankState();
+      save();
+      UI.tab = 'today';
+      render();
+      toast('已清空全部数据');
+      return;
+  }
+});
+
+/** 计数/时长加减：跨过目标线的那一刻给一次正反馈 */
+function bump(habit, delta, el) {
+  var c = getCheckin(habit.id, todayStr());
+  var before = c ? c.value : 0;
+  var after = Math.max(0, before + delta);
+  var wasDone = before >= habit.target && habit.target > 0;
+  setCheckin(habit.id, todayStr(), { value: after });
+  if (!wasDone && after >= habit.target && habit.target > 0) {
+    var r = el.getBoundingClientRect();
+    confettiAt(r.left + r.width / 2, r.top + r.height / 2);
+  }
+  render();
+}
+
+// 时间段的起止输入
+document.addEventListener('change', function (ev) {
+  var el = ev.target.closest('[data-act]');
+  if (!el) return;
+  var act = el.getAttribute('data-act');
+  var id = el.getAttribute('data-id');
+
+  if (act === 'tstart' || act === 'tend') {
+    var c = getCheckin(id, todayStr());
+    var patch = {
+      value: 1,
+      start_time: act === 'tstart' ? el.value : (c ? c.start_time : null),
+      end_time: act === 'tend' ? el.value : (c ? c.end_time : null)
+    };
+    // 只填了一端时不算完成，但仍要保存，避免用户误触丢失
+    setCheckin(id, todayStr(), patch);
+    render();
+    return;
+  }
+});
+
+// 设置页文本类输入
+document.addEventListener('input', function (ev) {
+  var el = ev.target;
+  if (!el.id) return;
+  if (el.id === 'set-nick') {
+    State.settings.nickname = el.value.slice(0, 16);
+    saveSoon();
+    renderTopbar();
+  } else if (el.id === 'set-avatar') {
+    State.settings.avatarText = el.value.slice(0, 2);
+    saveSoon();
+    renderTopbar();
+  } else if (el.id === 'set-apibase') {
+    State.settings.sync.apiBase = el.value.trim();
+    saveSoon();
+  } else if (el.id === 'set-token') {
+    State.settings.sync.token = el.value.trim();
+    saveSoon();
+  } else if (el.id === 'set-bg') {
+    State.settings.backgroundColor = el.value;
+    saveSoon();
+    applyTheme();
+  } else if (el.id === 'set-accent') {
+    State.settings.accentColor = el.value;
+    saveSoon();
+    applyTheme();
+  } else if (el.id === 'f-color-custom') {
+    UI.editing.color = el.value;
+  }
+});
+
+// 点遮罩关闭弹层
+document.getElementById('sheet').addEventListener('click', function (ev) {
+  if (ev.target === this) closeSheet();
+});
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Escape' && UI.sheet) closeSheet();
+});
+
+/* ---------- 导入导出 ---------- */
+
+function doExport() {
+  var payload = {
+    app: 'reach-habit-station',
+    version: 1,
+    exported_at: nowISO(),
+    habits: State.habits,
+    checkins: State.checkins,
+    moods: State.moods,
+    goals: State.goals,
+    settings: State.settings
+  };
+  var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'habit-station-' + todayStr() + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  toast('备份已导出');
+}
+
+// 隐藏的文件输入（放在 body 末尾，避免影响布局）
+(function () {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'application/json,.json';
+  inp.id = 'file-input';
+  inp.style.display = 'none';
+  inp.addEventListener('change', function () {
+    var f = inp.files && inp.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var o = JSON.parse(String(reader.result));
+        if (!o || !Array.isArray(o.habits)) throw new Error('文件结构不正确：缺少 habits 数组');
+        var mode = confirm('点「确定」= 合并导入（同 id 后写覆盖）\n点「取消」= 覆盖导入（清空现有数据）')
+          ? 'merge' : 'replace';
+        if (mode === 'replace') {
+          State = blankState();
+        }
+        var n = 0;
+        n += Sync.merge('habits', (o.habits || []).map(normalizeHabit));
+        n += Sync.merge('checkins', o.checkins || []);
+        n += Sync.merge('moods', o.moods || []);
+        n += Sync.merge('goals', o.goals || []);
+        if (o.settings) {
+          State.settings = Object.assign(defaultSettings(), o.settings);
+          State.settings.sync = Object.assign(defaultSettings().sync, o.settings.sync || {});
+        }
+        save();
+        render();
+        toast('导入完成，合并 ' + n + ' 条记录');
+      } catch (e) {
+        toast('导入失败：' + (e && e.message ? e.message : '无法解析'));
+      }
+      inp.value = '';
+    };
+    reader.readAsText(f);
+  });
+  document.body.appendChild(inp);
+})();
+
+/* ============================ 15. 启动 ============================ */
+
+(function init() {
+  var loaded = load();
+  if (loaded) {
+    State = loaded;
+  } else {
+    State = seedData();
+    save();
+  }
+  applyTheme();
+  render();
+
+  // 若已配置云同步，启动时后台静默拉一次（失败静默，不打断使用）
+  if (Sync.configured()) Sync.run(true);
+
+  // 跨天自动刷新：保证「今日」页在零点后自动切换
+  var day = todayStr();
+  setInterval(function () {
+    if (todayStr() !== day) { day = todayStr(); render(); }
+  }, 60000);
+
+  // 多标签页一致性：另一个标签改了数据，本页同步过来
+  window.addEventListener('storage', function (ev) {
+    if (ev.key !== STORE_KEY) return;
+    var l = load();
+    if (l) { State = l; render(); }
+  });
+})();
+</script>
+</body>
+</html>

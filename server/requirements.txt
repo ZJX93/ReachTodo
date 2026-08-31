@@ -10,4 +10,5 @@ passlib[bcrypt]
 bcrypt==4.0.1
 pydantic>=2
 python-multipart
+tzdata  # Windows/无系统时区库环境下的 IANA 时区数据（习惯打卡按用户时区算"今天"）
 nh3>=0.2.17  # 服务端富文本清洗（XSS 防护），未安装时自动退化为纯文本

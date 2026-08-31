@@ -29,6 +29,9 @@ class User(Base):
     device_tokens: Mapped[list["DeviceToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    habits: Mapped[list["Habit"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
 
 
 class DeviceToken(Base):

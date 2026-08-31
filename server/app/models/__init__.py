@@ -19,6 +19,13 @@ from .task import Task
 from .focus import FocusSession
 from .record import Record, Template
 from .setting import UserSetting, new_feed_token
+from .habit import (
+    Habit,
+    HabitCheckin,
+    HabitMood,
+    is_scheduled_on,
+    parse_weekdays,
+)
 
 __all__ = [
     "User",
@@ -33,4 +40,9 @@ __all__ = [
     "Template",
     "UserSetting",
     "new_feed_token",
+    "Habit",
+    "HabitCheckin",
+    "HabitMood",
+    "is_scheduled_on",
+    "parse_weekdays",
 ]

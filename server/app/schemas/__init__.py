@@ -39,6 +39,19 @@ from .record import (
     TemplateOut,
 )
 from .setting import SettingsPatch, SettingsOut, DEFAULT_SETTINGS
+from .habit import (
+    HabitCreate,
+    HabitUpdate,
+    HabitOut,
+    CheckinIn,
+    CheckinOut,
+    MoodIn,
+    MoodOut,
+    HabitStatsOut,
+    TodayOut,
+    SyncPush,
+    SyncPull,
+)
 
 __all__ = [
     # enums
@@ -91,4 +104,16 @@ __all__ = [
     "SettingsPatch",
     "SettingsOut",
     "DEFAULT_SETTINGS",
+    # habit
+    "HabitCreate",
+    "HabitUpdate",
+    "HabitOut",
+    "CheckinIn",
+    "CheckinOut",
+    "MoodIn",
+    "MoodOut",
+    "HabitStatsOut",
+    "TodayOut",
+    "SyncPush",
+    "SyncPull",
 ]

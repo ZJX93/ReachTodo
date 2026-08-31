@@ -30,6 +30,7 @@ from .routers import (
     devices,
     settings as settings_router,
     trash,
+    habits,
 )
 from .scheduler import start as scheduler_start, stop as scheduler_stop
 
@@ -105,6 +106,7 @@ app.include_router(devices.router)
 app.include_router(settings_router.router)
 app.include_router(trash.router)
 app.include_router(calendar_feed.router)
+app.include_router(habits.router)
 
 
 @app.get("/health")
