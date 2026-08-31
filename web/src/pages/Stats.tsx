@@ -62,7 +62,7 @@ export default function Stats() {
     <Layout summary={summary} selected="stats" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="mx-auto w-full max-w-[1600px]">
             <h1 className="text-lg font-bold text-[#0f172a] font-display">
               周回顾 / 数据看板
             </h1>
@@ -70,7 +70,7 @@ export default function Stats() {
           </div>
         </header>
 
-        <div className="max-w-6xl mx-auto p-5 md:p-7 space-y-6">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-4 space-y-6">
           {/* 核心指标 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
@@ -184,31 +184,43 @@ export default function Stats() {
                 待办 {todoTotal} · 完成 {doneTotal}
               </span>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {data.per_category.map((c) => {
                 const total = c.todo + c.done
                 const pct = total ? Math.round((c.done / total) * 100) : 0
                 return (
-                  <div key={c.name} className="flex items-center gap-3">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: c.color }}
-                    ></span>
-                    <span className="text-sm text-[#0f172a] w-16 shrink-0 truncate">
-                      {c.name}
-                    </span>
-                    <div className="flex-1 h-2 rounded-full bg-white/60 overflow-hidden">
+                  <div
+                    key={c.name}
+                    className="rounded-xl border border-white/60 bg-white/50 p-4 flex flex-col gap-2.5"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                        style={{ backgroundColor: `${c.color}22` }}
+                      >
+                        {c.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-[#0f172a] truncate">
+                          {c.name}
+                        </div>
+                        <div className="text-[10px] text-[#94a3b8]">完成率 {pct}%</div>
+                      </div>
+                    </div>
+                    <div className="flex-1 h-1.5 rounded-full bg-white/60 overflow-hidden">
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${pct}%`, backgroundColor: c.color }}
                       ></div>
                     </div>
-                    <span className="text-xs font-semibold text-[#0f172a] w-9 text-right shrink-0">
-                      {pct}%
-                    </span>
-                    <span className="text-[11px] text-[#94a3b8] w-20 text-right shrink-0">
-                      待办 {c.todo} · 完成 {c.done}
-                    </span>
+                    <div className="flex items-center justify-between text-[11px] text-[#94a3b8]">
+                      <span>
+                        待办 <b className="text-[#0f172a]">{c.todo}</b>
+                      </span>
+                      <span>
+                        完成 <b className="text-[#0f172a]">{c.done}</b>
+                      </span>
+                    </div>
                   </div>
                 )
               })}

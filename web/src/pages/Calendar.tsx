@@ -133,8 +133,8 @@ export default function Calendar() {
     <Layout summary={summary} selected="calendar" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         {/* 顶部控制栏 */}
-        <header className="sticky top-0 z-10 bg-white/55 backdrop-blur-[18px] border-b border-white/75 px-5 md:px-7 py-4">
-          <div className="mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3">
+        <header className="sticky top-0 z-10 bg-white/55 backdrop-blur-[18px] border-b border-white/75 px-3 md:px-4 py-4">
+          <div className="mx-auto w-full max-w-[1600px] flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-bold text-[#0f172a] font-display">日历</h1>
               <p className="text-xs text-[#475569]">{daysFromToday(selected, timezone)}</p>
@@ -183,7 +183,7 @@ export default function Calendar() {
           </div>
         </header>
 
-        <div className="max-w-7xl mx-auto p-4 md:p-6 grid lg:grid-cols-[1fr_360px] gap-4">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-4 grid lg:grid-cols-[1fr_360px] gap-4">
           <CalendarGrid
             cells={cells}
             month={month}

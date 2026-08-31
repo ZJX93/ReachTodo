@@ -11,13 +11,14 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { useSearchParams } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../auth'
 import Layout from './Layout'
 import SortableTaskCard from './components/SortableTaskCard'
 import TaskCard from './components/TaskCard'
 import TaskForm from './components/TaskForm'
-import { header, field, btnPrim, Icon } from './ui'
+import { header, field, btnPrim, Icon, card } from './ui'
 import { todayStr } from '../utils/date'
 import { getDueSoonTasks, kindLabel } from '../utils/reminders'
 import useSettingsStore from '../store/settingsStore'
@@ -25,11 +26,16 @@ import useSettingsStore from '../store/settingsStore'
 export default function Dashboard() {
   const { user, token } = useAuth()
   const timezone = useSettingsStore((s) => s.timezone)
+  const [searchParams] = useSearchParams()
+  // 维度筛选同步到 URL（?cat=xx），从其他页面点分类跳回首页时也能恢复选中态
+  const urlCat = searchParams.get('cat')
   const [categories, setCategories] = useState([])
   const [goals, setGoals] = useState([])
   const [tasks, setTasks] = useState([])
   const [summary, setSummary] = useState(null)
-  const [selected, setSelected] = useState('all')
+  const [selected, setSelected] = useState(
+    urlCat && urlCat !== 'all' ? Number(urlCat) : 'all',
+  )
   const [showForm, setShowForm] = useState(false)
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -61,6 +67,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (categories.length) loadAll(selected)
   }, [selected])
+
+  // 侧栏点分类 / 浏览器前进后退时，URL 的 cat 变化会重挂载或更新，这里同步选中态
+  useEffect(() => {
+    setSelected(urlCat && urlCat !== 'all' ? Number(urlCat) : 'all')
+  }, [urlCat])
 
   // 拖拽传感器：移动 6px 才激活，避免与卡片内按钮点击冲突
   const sensors = useSensors(
@@ -302,7 +313,7 @@ export default function Dashboard() {
     <Layout summary={summary} selected={selected} onSelect={setSelected}>
       <main className="flex-1 overflow-y-auto md:pb-0 pb-20">
         <header className={`${header} flex items-center justify-between gap-3`}>
-          <div className="mx-auto w-full max-w-5xl flex items-center justify-between gap-3">
+          <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-lg font-bold text-[#0f172a] truncate font-display">
               {currentName}
@@ -350,32 +361,39 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="max-w-5xl mx-auto p-5 md:p-7 space-y-7">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-4 space-y-6">
           {loading ? (
             <p className="text-sm text-[#94a3b8]">加载中…</p>
           ) : selected === 'all' ? (
             <>
-              {groups.map((g) => (
-                <section key={g.id}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: g.color }}
-                    ></span>
-                    <h2 className="font-bold text-[#475569]">{g.name}</h2>
-                    <span className="text-xs text-[#94a3b8]">
-                      待办 {g.items.filter((t) => t.status === 'todo').length}
-                    </span>
-                  </div>
-                  {g.items.length === 0 ? (
-                    <p className="text-sm text-[#cbd5e1] pl-5">
-                      今天这个维度还没有任务
-                    </p>
-                  ) : (
-                    renderSortableGroup(g, groupOrder, setGroupOrder)
-                  )}
-                </section>
-              ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 md:grid-rows-2 gap-3 md:h-[calc(100vh-8rem)]">
+                {groups.map((g) => (
+                  <section
+                    key={g.id}
+                    className={`${card} p-4 h-full flex flex-col`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <span
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: g.color }}
+                      ></span>
+                      <h2 className="font-bold text-[#475569]">{g.name}</h2>
+                      <span className="text-xs text-[#94a3b8]">
+                        待办 {g.items.filter((t) => t.status === 'todo').length}
+                      </span>
+                    </div>
+                    {g.items.length === 0 ? (
+                      <p className="text-sm text-[#cbd5e1] flex-1">
+                        今天这个维度还没有任务
+                      </p>
+                    ) : (
+                      <div className="flex-1 overflow-y-auto pr-1">
+                        {renderSortableGroup(g, groupOrder, setGroupOrder)}
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
               {overdueTotal > 0 && (
                 <section className="pt-2">
                   <button
@@ -411,9 +429,9 @@ export default function Dashboard() {
               )}
             </>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
               {visibleTasks.length === 0 ? (
-                <p className="text-sm text-[#cbd5e1] md:col-span-2">这个维度还没有任务</p>
+                <p className="text-sm text-[#cbd5e1] md:col-span-2 xl:col-span-4">这个维度还没有任务</p>
               ) : (
                 visibleTasks.map((t) => (
                   <TaskCard

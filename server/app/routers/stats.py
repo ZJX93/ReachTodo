@@ -1,7 +1,7 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import Date, and_, cast, select, func
+from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
@@ -52,11 +52,15 @@ async def summary(
     # 连续完成天数（streak）：从今天往前逐日查。
     # 只统计 done 的 completed_at 日期集合，最坏逐天回溯，量级小；
     # 相比全表加载仍显著更优。
+    # 注意：不要在 SQL 里 CAST(... AS DATE) 取日期——SQLite 的 DATE 是
+    # NUMERIC 亲和，会把 '2026-08-18 09:20:00' 转成整数 2026 而不是日期，
+    # 结果处理器 fromisoformat 直接炸（见 #stats-sqlite-cast）。这里拉回
+    # 时间戳后在 Python 侧取 .date()，双数据库通用。
     done_dates = {
-        d
-        for (d,) in (
+        row[0].date()
+        for row in (
             await db.execute(
-                select(cast(Task.completed_at, Date)).where(
+                select(Task.completed_at).where(
                     base, Task.status == "done", Task.completed_at.is_not(None)
                 ).distinct()
             )
@@ -122,10 +126,14 @@ async def summary(
     ]
 
     # 专注时长：今日 / 本周
+    # 今日用 [今天 00:00, 明天 00:00) 区间判断，避免 SQLite 下
+    # CAST(... AS DATE) 返回整数导致 fromisoformat 崩溃（同 streak 处的坑）。
+    today_start = datetime.combine(today, time.min, tzinfo=timezone.utc)
     focus_minutes_today = await db.scalar(
         select(func.coalesce(func.sum(FocusSession.minutes), 0)).where(
             FocusSession.user_id == current.id,
-            cast(FocusSession.started_at, Date) == today,
+            FocusSession.started_at >= today_start,
+            FocusSession.started_at < today_start + timedelta(days=1),
         )
     ) or 0
     focus_minutes_week = await db.scalar(

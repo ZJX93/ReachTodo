@@ -47,7 +47,7 @@ export default function Matrix() {
     <Layout summary={summary} selected="matrix" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={header}>
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="mx-auto w-full max-w-[1600px]">
             <h1 className="text-lg font-bold text-[#0f172a] font-display">
               艾森豪威尔四象限
             </h1>
@@ -57,24 +57,24 @@ export default function Matrix() {
           </div>
         </header>
 
-        <div className="max-w-6xl mx-auto p-5 md:p-7">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-4">
           {loading ? (
             <p className="text-sm text-[#94a3b8]">加载中…</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 md:grid-rows-2 gap-4 md:h-[calc(100vh-8rem)]">
               {quadrants.map((q) => (
                 <section
                   key={q.key}
-                  className={`${card} border-t-4 ${ACCENT[q.key]} p-4`}
+                  className={`${card} border-t-4 ${ACCENT[q.key]} p-4 h-full flex flex-col`}
                 >
                   <div className="flex items-baseline justify-between mb-3">
                     <h2 className="font-bold text-[#475569]">{q.title}</h2>
                     <span className="text-xs text-[#94a3b8]">{q.sub}</span>
                   </div>
                   {q.tasks.length === 0 ? (
-                    <p className="text-sm text-[#cbd5e1]">暂无任务</p>
+                    <p className="text-sm text-[#cbd5e1] flex-1">暂无任务</p>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                       {q.tasks.map((t) => (
                         <TaskCard
                           key={t.id}

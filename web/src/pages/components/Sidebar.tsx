@@ -141,10 +141,7 @@ export default function Sidebar({ summary, selected, onSelect }: SidebarProps) {
         {cats.map((c) => (
           <button
             key={c.category_id}
-            onClick={() => {
-              navigate('/')
-              onSelect(c.category_id)
-            }}
+            onClick={() => navigate(`/?cat=${c.category_id}`)}
             className={`${baseItem} ${
               selected === c.category_id
                 ? 'bg-white/40 font-semibold text-[#0f172a]'

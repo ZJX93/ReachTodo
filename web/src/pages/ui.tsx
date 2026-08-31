@@ -9,7 +9,7 @@ export const card =
 export const cardLg =
   'bg-white/55 backdrop-blur-[18px] border border-white/75 rounded-3xl shadow-[0_20px_50px_-20px_rgba(8,145,178,0.35)]'
 export const header =
-  'sticky top-0 z-10 bg-white/55 backdrop-blur-[18px] border-b border-white/75 px-5 md:px-7 py-4'
+  'sticky top-0 z-10 bg-white/55 backdrop-blur-[18px] border-b border-white/75 px-3 md:px-4 py-4'
 export const field =
   'w-full border border-white/75 rounded-xl px-3 py-2.5 text-sm bg-white/70 text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4]/20 transition'
 export const btnPrim =

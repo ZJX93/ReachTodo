@@ -86,7 +86,7 @@ export default function Records() {
     <Layout summary={summary} selected="records" onSelect={() => {}}>
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <header className={`${header} flex items-center justify-between gap-3 flex-wrap`}>
-          <div className="mx-auto w-full max-w-6xl flex items-center justify-between gap-3 flex-wrap">
+          <div className="mx-auto w-full max-w-[1600px] flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-lg font-bold text-[#0f172a] font-display">记录</h1>
             <p className="text-xs text-[#475569]">个人日记 · 工作日志 · 读书笔记</p>
@@ -117,7 +117,7 @@ export default function Records() {
         </header>
 
         {/* 类型筛选 */}
-        <div className="max-w-6xl mx-auto px-5 md:px-7 pt-4">
+        <div className="max-w-[1600px] mx-auto px-3 md:px-4 pt-4">
           <div className="flex gap-2 flex-wrap">
             {[{ key: 'all', label: '全部', color: '#2563eb' }, ...RECORD_TYPE_LIST].map((t) => {
               const active = typeFilter === t.key
@@ -139,7 +139,7 @@ export default function Records() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto p-5 md:p-7 space-y-6">
+        <div className="max-w-[1600px] mx-auto p-3 md:p-4 space-y-6">
           {loading ? (
             <p className="text-[#94a3b8] text-sm">加载中…</p>
           ) : records.length === 0 ? (
