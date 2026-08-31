@@ -42,6 +42,9 @@ interface ApiService {
     @DELETE("/api/tasks/{id}")
     suspend fun deleteTask(@Path("id") id: Int)
 
+    @GET("/api/tasks/matrix")
+    suspend fun tasksMatrix(): List<MatrixQuadrant>
+
     // ---------------- 目标 ----------------
     @GET("/api/goals")
     suspend fun goals(): List<GoalOut>

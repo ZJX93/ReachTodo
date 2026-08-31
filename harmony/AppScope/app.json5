@@ -1,0 +1,11 @@
+{
+  "app": {
+    // 与安卓端 applicationId 保持同一命名空间，便于统一品牌与推送配置
+    "bundleName": "com.zjx93.reach",
+    "vendor": "zjx93",
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name"
+  }
+}

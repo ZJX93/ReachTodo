@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ fun ProfileScreen(nav: NavHostController, rootNav: NavHostController) {
             ListItem(headlineContent = { Text("修改密码") }, leadingContent = { Icon(Icons.Filled.Lock, null) }, modifier = Modifier.clickable { showPwd = true })
             ListItem(headlineContent = { Text("设置") }, leadingContent = { Icon(Icons.Filled.Settings, null) }, modifier = Modifier.clickable { nav.navigate(Routes.SETTINGS) })
             ListItem(headlineContent = { Text("专注计时") }, leadingContent = { Icon(Icons.Filled.PlayArrow, null) }, modifier = Modifier.clickable { nav.navigate(Routes.FOCUS) })
+            ListItem(headlineContent = { Text("周回顾") }, leadingContent = { Icon(Icons.Filled.DateRange, null) }, modifier = Modifier.clickable { nav.navigate(Routes.STATS) })
 
             Spacer(Modifier.weight(1f))
             Button(onClick = {

@@ -1,0 +1,31 @@
+{
+  "app": {
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        // API 12 = HarmonyOS NEXT (5.0.0)。ArkTS 声明式 UI + PushKit 均需 >= 11。
+        "compatibleSdkVersion": 12,
+        "compileSdkVersion": 12,
+        "targetSdkVersion": 12,
+        "runtimeOS": "HarmonyOS"
+      }
+    ],
+    "buildModeSet": [
+      { "name": "debug" },
+      { "name": "release" }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": ["default"]
+        }
+      ]
+    }
+  ]
+}

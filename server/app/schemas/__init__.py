@@ -14,11 +14,20 @@ from .common import (
     RecordType,
     TemplateType,
     GoalStatus,
+    DevicePlatform,
 )
 from .user import UserCreate, UserUpdate, PasswordChange, UserOut, TokenOut
 from .category import CategoryCreate, CategoryUpdate, CategoryOut
 from .goal import GoalCreate, GoalUpdate, GoalOut, GoalBoardItem
-from .task import TaskCreate, TaskUpdate, TaskOut
+from .tag import TagCreate, TagUpdate, TagOut
+from .task import (
+    TaskCreate,
+    TaskUpdate,
+    TaskOut,
+    TaskBulkRequest,
+    TaskBulkResult,
+    BulkAction,
+)
 from .focus import FocusSessionCreate, FocusSessionOut
 from .record import (
     RecordCreate,
@@ -29,6 +38,7 @@ from .record import (
     TemplateUpdate,
     TemplateOut,
 )
+from .setting import SettingsPatch, SettingsOut, DEFAULT_SETTINGS
 
 __all__ = [
     # enums
@@ -39,6 +49,8 @@ __all__ = [
     "RecordType",
     "TemplateType",
     "GoalStatus",
+    "DevicePlatform",
+    "BulkAction",
     # user
     "UserCreate",
     "UserUpdate",
@@ -54,10 +66,16 @@ __all__ = [
     "GoalUpdate",
     "GoalOut",
     "GoalBoardItem",
+    # tag
+    "TagCreate",
+    "TagUpdate",
+    "TagOut",
     # task
     "TaskCreate",
     "TaskUpdate",
     "TaskOut",
+    "TaskBulkRequest",
+    "TaskBulkResult",
     # focus
     "FocusSessionCreate",
     "FocusSessionOut",
@@ -69,4 +87,8 @@ __all__ = [
     "TemplateCreate",
     "TemplateUpdate",
     "TemplateOut",
+    # settings
+    "SettingsPatch",
+    "SettingsOut",
+    "DEFAULT_SETTINGS",
 ]

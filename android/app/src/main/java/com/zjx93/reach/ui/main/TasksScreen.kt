@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +33,16 @@ fun TasksScreen(nav: NavHostController) {
     val state by vm.state.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("任务") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("任务") },
+                actions = {
+                    IconButton(onClick = { nav.navigate(Routes.MATRIX) }) {
+                        Icon(Icons.Filled.Dashboard, contentDescription = "四象限")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { nav.navigate(Routes.TASK_EDIT) }) {
                 Icon(Icons.Filled.Add, contentDescription = "新建")

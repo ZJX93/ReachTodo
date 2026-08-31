@@ -2,21 +2,25 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import DeviceToken, User
+from ..schemas import DevicePlatform
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 
 
 class DeviceRegister(BaseModel):
-    token: str
-    platform: str = "android"  # android | web
-    device_name: Optional[str] = None
+    # token 长度上限按 FCM/Push Kit 实际取值放宽，同时防止超长串灌库
+    token: str = Field(min_length=8, max_length=1024)
+    # 用 Literal 而非裸 str：平台值决定推送走哪条通道（harmony → 华为 Push Kit，
+    # 其余 → FCM），一个拼错的平台名会让该设备永远收不到推送且毫无报错。
+    platform: DevicePlatform = "android"
+    device_name: Optional[str] = Field(default=None, max_length=100)
 
 
 @router.post("/register")

@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import Date, cast, select, func
+from sqlalchemy import Date, and_, cast, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
@@ -25,7 +25,9 @@ async def summary(
     week_ago = now - timedelta(days=7)
     today = now.date()
 
-    base = Task.user_id == current.id
+    # 所有统计都必须排除回收站数据：软删除后仍计入「已完成数 / streak」
+    # 会让用户看到自相矛盾的数字（列表里没有，统计里还在）。
+    base = and_(Task.user_id == current.id, Task.deleted_at.is_(None))
 
     # 待办 / 已完成总数
     status_counts = dict(

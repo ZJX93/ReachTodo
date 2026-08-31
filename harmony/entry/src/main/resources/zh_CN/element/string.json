@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "抵达 Reach 主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "抵达 Reach"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "抵达"
+    }
+  ]
+}

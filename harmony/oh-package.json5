@@ -1,0 +1,12 @@
+{
+  "name": "reach",
+  "version": "1.0.0",
+  "description": "抵达 Reach —— HarmonyOS 客户端",
+  "main": "",
+  "author": "zjx93",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.19"
+  }
+}

@@ -45,7 +45,15 @@ async def board(
                 func.count(Task.id)
                 .filter(Task.status == "todo", Task.due_date < date.today())
                 .label("overdue"),
-            ).where(Task.goal_id.isnot(None))
+            )
+            # 只统计本人且未在回收站的任务：
+            # 缺少 user_id 条件会跨账号聚合，缺少 deleted_at 条件会让
+            # 目标进度把已删任务算进分母。
+            .where(
+                Task.goal_id.isnot(None),
+                Task.user_id == current.id,
+                Task.deleted_at.is_(None),
+            )
             .group_by(Task.goal_id)
         )
     ).all()

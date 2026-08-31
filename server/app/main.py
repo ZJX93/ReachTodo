@@ -8,15 +8,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import CORS_ORIGINS, SEED_DEMO_DATA
+from .config import settings
 from .database import init_db
 from .ratelimit import RateLimitMiddleware
 from .security_headers import SecurityHeadersMiddleware
 from .routers import (
     auth,
+    calendar_feed,
     categories,
     goals,
     tasks,
+    tags,
     stats,
     focus,
     records,
@@ -24,7 +26,10 @@ from .routers import (
     holidays,
     lunar,
     export,
+    import_data,
     devices,
+    settings as settings_router,
+    trash,
 )
 from .scheduler import start as scheduler_start, stop as scheduler_stop
 
@@ -35,10 +40,16 @@ from .scheduler import start as scheduler_start, stop as scheduler_stop
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup：建库 / 迁移 / seed
+    # startup：日志级别 → 配置自检 → 建库 / 迁移 → seed → 调度器
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    # 把配置风险显式打到日志，自托管用户第一次启动就能看到该改什么
+    settings.log_warnings()
     await init_db()
     await _maybe_seed_demo_data()
-    scheduler_start()  # 启动后台到期提醒调度器（FCM 凭证未配置时自动 no-op）
+    scheduler_start()  # 启动后台到期提醒调度器（推送凭证未配置时自动 no-op）
     yield
     scheduler_stop()  # shutdown：取消调度器任务
     # 无持久连接需要显式释放，连接池由 engine 自动回收
@@ -50,27 +61,30 @@ async def _maybe_seed_demo_data():
     播种失败绝不能拖垮启动——演示数据只是锦上添花，
     真出问题时应用仍要能正常提供服务，日志里留痕即可。
     """
-    if SEED_DEMO_DATA not in ("1", "true", "yes", "on", "force"):
+    if settings.seed_demo_data not in ("1", "true", "yes", "on", "force"):
         return
     try:
         from scripts.seed_demo_data import seed
 
-        await seed(force=(SEED_DEMO_DATA == "force"))
+        await seed(force=(settings.seed_demo_data == "force"))
     except Exception:  # noqa: BLE001
         logging.getLogger(__name__).exception("演示数据播种失败，已跳过")
 
 
-app = FastAPI(title="抵达 Reach API", version="0.2.2", lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name, version=settings.app_version, lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
-# 登录/注册/改密接口限速（防爆破）；多实例可设 RATE_LIMIT_REDIS_URL 改用 Redis 共享存储
-app.add_middleware(RateLimitMiddleware, limit=10, window=60)
+# 登录/注册/改密接口限速（防爆破）。阈值、窗口、受保护路径、Redis 地址
+# 全部由配置中心提供（RATE_LIMIT_*），此处不再硬编码。
+app.add_middleware(RateLimitMiddleware)
 # 安全响应头中间件：为所有响应（含 SPA 静态文件）补充防护头，放在路由注册之前
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -84,13 +98,51 @@ app.include_router(records.router)
 app.include_router(templates.router)
 app.include_router(holidays.router)
 app.include_router(lunar.router)
+app.include_router(tags.router)
 app.include_router(export.router)
+app.include_router(import_data.router)
 app.include_router(devices.router)
+app.include_router(settings_router.router)
+app.include_router(trash.router)
+app.include_router(calendar_feed.router)
 
 
 @app.get("/health")
-async def health():
-    return JSONResponse({"status": "ok"})
+async def health(deep: bool = False):
+    """健康检查 / 配置自省。
+
+    - ``GET /health`` 轻量探针：只报告进程存活与静态配置，不触库，可高频调用。
+    - ``GET /health?deep=1`` 深度探针：额外做一次 ``SELECT 1`` 验证数据库连通性，
+      数据库不可用时返回 503，可直接用于容器 healthcheck / 负载均衡摘除。
+
+    输出中的密钥一律脱敏（见 ``Settings.describe``），可安全暴露给内网监控。
+    """
+    from .scheduler import is_running as scheduler_running
+
+    body = {
+        "status": "ok",
+        **settings.describe(),
+        "scheduler_running": scheduler_running(),
+        "config_warnings": settings.warnings(),
+    }
+
+    if deep:
+        from sqlalchemy import text
+
+        from .database import engine
+
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            body["database_status"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            body["status"] = "degraded"
+            body["database_status"] = "error"
+            # 只回错误类型，不回连接串等敏感细节
+            body["database_error"] = type(exc).__name__
+            return JSONResponse(body, status_code=503)
+
+    return JSONResponse(body)
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Reach entry module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Reach"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Reach"
+    }
+  ]
+}

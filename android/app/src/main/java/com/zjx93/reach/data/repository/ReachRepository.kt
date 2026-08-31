@@ -79,6 +79,9 @@ class ReachRepository {
     suspend fun updateTask(id: Int, body: TaskUpdate): Result<TaskOut> = run { it.updateTask(id, body) }
     suspend fun deleteTask(id: Int): Result<Unit> = run { it.deleteTask(id) }
 
+    // ---------------- 四象限 ----------------
+    suspend fun tasksMatrix(): Result<List<MatrixQuadrant>> = run { it.tasksMatrix() }
+
     // ---------------- 目标 ----------------
     suspend fun goals(): Result<List<GoalOut>> = run { it.goals() }
     suspend fun goalsBoard(): Result<List<GoalBoardItem>> = run { it.goalsBoard() }

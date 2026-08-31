@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "抵达 Reach 主模块",
+  "main": "",
+  "author": "zjx93",
+  "license": "MIT",
+  "dependencies": {}
+}

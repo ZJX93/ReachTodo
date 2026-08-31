@@ -1,0 +1,45 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "EntryAbility",
+    "deviceTypes": ["phone", "tablet", "2in1"],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "description": "$string:EntryAbility_desc",
+        "icon": "$media:app_icon",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": ["entity.system.home"],
+            "actions": ["action.system.home"]
+          }
+        ]
+      }
+    ],
+    "requestPermissions": [
+      {
+        // 访问自建后端（HTTP/HTTPS）
+        "name": "ohos.permission.INTERNET"
+      },
+      {
+        // 判断当前网络可用性，离线时直接给出「网络不可用」而不是干等超时
+        "name": "ohos.permission.GET_NETWORK_INFO"
+      },
+      {
+        // 本地日程提醒（reminderAgentManager）。这是「无云推送也能提醒」的关键权限，
+        // 属于 normal 级别，安装即授予，无需运行时弹窗。
+        "name": "ohos.permission.PUBLISH_AGENT_REMINDER"
+      }
+    ]
+  }
+}

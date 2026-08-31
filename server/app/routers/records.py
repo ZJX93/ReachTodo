@@ -1,8 +1,9 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..database import get_db
 from ..models import Record, User, Template, Task
 from ..schemas import RecordCreate, RecordUpdate, RecordOut, CalendarDay
@@ -40,7 +41,10 @@ async def list_records(
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
-    qry = select(Record).where(Record.user_id == current.id)
+    # deleted_at 非空 = 已在回收站，常规列表必须排除
+    qry = select(Record).where(
+        Record.user_id == current.id, Record.deleted_at.is_(None)
+    )
     if type:
         qry = qry.where(Record.type == type)
     if date:
@@ -50,9 +54,15 @@ async def list_records(
     if to_date:
         qry = qry.where(Record.record_date <= _parse_date(to_date))
     if q:
-        like = f"%{q}%"
+        # 转义 LIKE 元字符：不转义时用户搜 "100%" 会退化成匹配全部
+        like = (
+            "%"
+            + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            + "%"
+        )
         qry = qry.where(
-            (Record.title.ilike(like)) | (Record.content.ilike(like))
+            Record.title.ilike(like, escape="\\")
+            | Record.content.ilike(like, escape="\\")
         )
     qry = qry.order_by(
         Record.record_date.desc(), Record.record_time.desc(), Record.created_at.desc()
@@ -80,6 +90,7 @@ async def calendar(
         await db.scalars(
             select(Record).where(
                 Record.user_id == current.id,
+                Record.deleted_at.is_(None),
                 Record.record_date >= start,
                 Record.record_date < nxt,
             )
@@ -108,6 +119,7 @@ async def calendar(
         await db.scalars(
             select(Task).where(
                 Task.user_id == current.id,
+                Task.deleted_at.is_(None),
                 Task.due_date >= start,
                 Task.due_date < nxt,
             )
@@ -190,12 +202,21 @@ async def update_record(
 @router.delete("/{record_id}", status_code=204)
 async def delete_record(
     record_id: int,
+    purge: bool = Query(False, description="true=跳过回收站直接彻底删除（不可恢复）"),
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
+    """删除记录。
+
+    默认**软删除**（移入回收站，可在 `/api/trash` 恢复）。日记 / 读书笔记
+    往往是不可再生的长文本，误删代价远高于任务，因此回收站在这里尤其重要。
+    """
     r = await db.get(Record, record_id)
     if not r or r.user_id != current.id:
         raise HTTPException(status_code=404, detail="记录不存在")
-    await db.delete(r)
+    if purge or not settings.feature_trash:
+        await db.delete(r)
+    else:
+        r.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 

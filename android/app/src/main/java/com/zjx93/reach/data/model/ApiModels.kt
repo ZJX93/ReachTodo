@@ -216,6 +216,13 @@ data class StatsSummary(
     @SerializedName("focus_minutes_week") val focusMinutesWeek: Int = 0,
 )
 
+data class MatrixQuadrant(
+    val key: String = "",
+    val title: String = "",
+    val sub: String = "",
+    val tasks: List<TaskOut> = emptyList(),
+)
+
 data class CategoryStat(
     val name: String = "",
     val color: String = "#3B82F6",

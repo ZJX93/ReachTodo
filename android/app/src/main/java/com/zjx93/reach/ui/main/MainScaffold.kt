@@ -70,6 +70,8 @@ fun MainScaffold(rootNav: NavHostController) {
             composable(Routes.FOCUS) { FocusScreen(inner) }
             composable(Routes.PROFILE) { ProfileScreen(inner, rootNav) }
             composable(Routes.SETTINGS) { SettingsScreen(inner) }
+            composable(Routes.MATRIX) { MatrixScreen(inner) }
+            composable(Routes.STATS) { StatsScreen(inner) }
         }
     }
 }

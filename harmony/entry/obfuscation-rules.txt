@@ -1,0 +1,6 @@
+# release 构建的混淆规则。
+# 注意：网络层用 JSON.parse 把响应直接映射成 interface，属性名一旦被混淆
+# 就再也对不上后端返回的字段，因此必须关闭属性名混淆。
+-enable-property-obfuscation false
+-enable-toplevel-obfuscation
+-compact

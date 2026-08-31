@@ -21,6 +21,8 @@ object Routes {
     const val DAY_DETAIL = "dayDetail"
     const val FOCUS = "focus"
     const val SETTINGS = "settings"
+    const val MATRIX = "matrix"
+    const val STATS = "stats"
 
     val TAB_ROUTES = listOf(DASHBOARD, TASKS, GOALS, CALENDAR, PROFILE)
 }

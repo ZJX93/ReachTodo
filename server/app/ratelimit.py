@@ -11,13 +11,14 @@
 
 from __future__ import annotations
 
-import os
 import time
 from collections import defaultdict, deque
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+from .config import settings
 
 DEFAULT_PATHS = (
     "/api/auth/login",
@@ -27,27 +28,27 @@ DEFAULT_PATHS = (
 
 
 def _resolve_paths() -> set[str]:
-    raw = os.getenv("RATE_LIMIT_PATHS")
-    if raw:
-        return {p.strip() for p in raw.split(",") if p.strip()}
-    return set(DEFAULT_PATHS)
+    """受保护路径：配置了 RATE_LIMIT_PATHS 就用它，否则用内置默认集合。"""
+    return set(settings.rate_limit_paths) or set(DEFAULT_PATHS)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        limit: int = 10,
-        window: int = 60,
+        limit: int | None = None,
+        window: int | None = None,
         paths=None,
         redis_url: str | None = None,
     ):
         super().__init__(app)
-        self.limit = limit
-        self.window = window
+        # 参数缺省时全部取自配置中心，不再各处 os.getenv
+        self.limit = limit if limit is not None else settings.rate_limit_max
+        self.window = window if window is not None else settings.rate_limit_window
+        self.enabled = settings.rate_limit_enabled
         self.paths = paths if paths is not None else _resolve_paths()
         self.redis_url = (
-            redis_url if redis_url is not None else os.getenv("RATE_LIMIT_REDIS_URL")
+            redis_url if redis_url is not None else settings.rate_limit_redis_url
         )
         self._redis = None
         # path -> ip -> deque[wall-clock timestamps]
@@ -68,7 +69,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path not in self.paths:
+        if not self.enabled or path not in self.paths:
             return await call_next(request)
 
         ip = request.client.host if request.client else "unknown"

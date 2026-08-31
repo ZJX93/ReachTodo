@@ -1,9 +1,27 @@
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from .config import DATABASE_URL
+from .config import DATABASE_URL, settings
 
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+
+def _engine_kwargs() -> dict:
+    """按方言拼装 engine 参数。
+
+    SQLite（aiosqlite）不接受 pool_size / max_overflow —— 它用的是
+    ``StaticPool``/``NullPool`` 家族，传入会直接 TypeError。
+    因此连接池参数只对 PostgreSQL 等真正的网络数据库生效。
+    """
+    kwargs: dict = {"echo": settings.db_echo, "future": True}
+    if not settings.is_sqlite:
+        kwargs["pool_size"] = settings.db_pool_size
+        kwargs["max_overflow"] = settings.db_max_overflow
+        # 回收长连接，避免云数据库侧空闲断连后拿到坏连接
+        kwargs["pool_pre_ping"] = True
+        kwargs["pool_recycle"] = 1800
+    return kwargs
+
+
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs())
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

@@ -1,13 +1,22 @@
-"""FCM 多端推送（Firebase Cloud Messaging HTTP v1）。
+"""多端推送分发。
 
-不依赖 firebase-admin / google-auth，直接用项目既有依赖
+本模块是**推送入口与分发器**，按设备平台选择通道：
+
+    platform = "harmony"        → 华为 Push Kit（见 push_hms.py）
+    platform = "android"/"web"  → FCM HTTP v1（本模块实现）
+
+为什么要分发：HarmonyOS NEXT 上不存在 Google 服务，FCM 通道对鸿蒙设备
+永远送不达；而华为 Push 又不支持 Web 推送。两条通道必须并存、按平台走。
+任一通道未配置时只跳过该通道，不影响另一条。
+
+FCM 实现不依赖 firebase-admin / google-auth，直接用项目既有依赖
 （python-jose 签 RS256 JWT + httpx 换 token + 发消息）实现，
 避免引入 grpc 等重型依赖，也无需改动 requirements.lock。
 
 凭证（二选一，从环境变量读取）：
   - FCM_SERVICE_ACCOUNT_JSON : 服务账号 JSON 文件路径
   - 或 FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY 三个分开给
-未配置时 send_to_user 直接 no-op（打 warning），不影响主流程。
+未配置时对应通道直接 no-op（打 warning），不影响主流程。
 """
 from __future__ import annotations
 
@@ -27,6 +36,7 @@ from .config import (
     FCM_PROJECT_ID,
     FCM_SERVICE_ACCOUNT_JSON,
 )
+from . import push_hms
 from .database import SessionLocal
 from .models import DeviceToken
 
@@ -89,15 +99,10 @@ async def send_to_user(
     body: str,
     data: Optional[dict] = None,
 ) -> int:
-    """向某用户的所有注册设备推送。返回成功发送的设备数。"""
-    sa = _load_service_account()
-    if sa is None:
-        logger.warning(
-            "FCM 未配置（需 FCM_SERVICE_ACCOUNT_JSON 或 "
-            "FCM_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY），跳过推送"
-        )
-        return 0
+    """向某用户的所有注册设备推送。返回成功发送的设备数。
 
+    按平台分发到不同通道；某个通道未配置只影响该平台的设备。
+    """
     async with SessionLocal() as db:
         tokens = (
             await db.execute(
@@ -105,6 +110,32 @@ async def send_to_user(
             )
         ).scalars().all()
     if not tokens:
+        return 0
+
+    harmony_tokens = [t.token for t in tokens if t.platform == "harmony"]
+    fcm_tokens = [t for t in tokens if t.platform != "harmony"]
+
+    sent = 0
+    if harmony_tokens:
+        sent += await push_hms.send(harmony_tokens, title, body, data)
+    if fcm_tokens:
+        sent += await _send_fcm(fcm_tokens, title, body, data)
+    return sent
+
+
+async def _send_fcm(
+    tokens: list[DeviceToken],
+    title: str,
+    body: str,
+    data: Optional[dict] = None,
+) -> int:
+    """FCM HTTP v1 通道。仅处理 android / web / ios 平台的 token。"""
+    sa = _load_service_account()
+    if sa is None:
+        logger.warning(
+            "FCM 未配置（需 FCM_SERVICE_ACCOUNT_JSON 或 "
+            "FCM_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY），跳过 FCM 推送"
+        )
         return 0
 
     project_id = sa.get("project_id")

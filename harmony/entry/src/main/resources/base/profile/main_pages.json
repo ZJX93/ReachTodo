@@ -1,0 +1,16 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/TaskEditPage",
+    "pages/GoalEditPage",
+    "pages/RecordEditPage",
+    "pages/DayDetailPage",
+    "pages/MatrixPage",
+    "pages/GoalsPage",
+    "pages/StatsPage",
+    "pages/FocusPage",
+    "pages/SettingsPage",
+    "pages/TagsPage",
+    "pages/TrashPage"
+  ]
+}

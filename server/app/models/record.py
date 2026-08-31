@@ -35,6 +35,10 @@ class Record(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # 软删除时间戳，与 Task 一致：删除先进回收站，可恢复 / 可彻底清除。
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
     owner: Mapped["User"] = relationship("User")
 
