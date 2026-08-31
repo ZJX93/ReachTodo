@@ -15,6 +15,7 @@ import api from '../api'
 import { useAuth } from '../auth'
 import Layout from './Layout'
 import SortableTaskCard from './components/SortableTaskCard'
+import TaskCard from './components/TaskCard'
 import TaskForm from './components/TaskForm'
 import { header, field, btnPrim, Icon } from './ui'
 import { todayStr } from '../utils/date'
@@ -408,15 +409,23 @@ export default function Dashboard() {
               )}
             </>
           ) : (
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {visibleTasks.length === 0 ? (
-                <p className="text-sm text-[#cbd5e1]">这个维度还没有任务</p>
+                <p className="text-sm text-[#cbd5e1] md:col-span-2">这个维度还没有任务</p>
               ) : (
-                renderSortableGroup(
-                  { ...currentCat, items: visibleTasks },
-                  groupOrder,
-                  setGroupOrder,
-                )
+                visibleTasks.map((t) => (
+                  <TaskCard
+                    key={t.id}
+                    task={t}
+                    category={currentCat}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    subtasks={subtasksByParent[t.id] || []}
+                    onAddSubtask={handleAddSub}
+                    onToggleSub={handleToggleSub}
+                    onDeleteSub={handleDeleteSub}
+                  />
+                ))
               )}
             </div>
           )}
