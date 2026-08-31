@@ -56,6 +56,11 @@ const icons = {
       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
     </svg>
   ),
+  info: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+  ),
 }
 
 const brand = (
@@ -89,6 +94,7 @@ export default function Sidebar({ summary, selected, onSelect }: SidebarProps) {
   const footNav: NavItem[] = [
     { key: 'focus', path: '/focus', label: '专注 / 番茄钟', icon: icons.timer },
     { key: 'goals', path: '/goals', label: '我的目标', icon: icons.goal },
+    { key: 'about', path: '/about', label: '关于', icon: icons.info },
   ]
 
   const navClick = (item: NavItem) => {

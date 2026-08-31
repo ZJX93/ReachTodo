@@ -12,6 +12,7 @@ const Focus = lazy(() => import('./pages/Focus'))
 const Records = lazy(() => import('./pages/Records'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const Settings = lazy(() => import('./pages/Settings'))
+const About = lazy(() => import('./pages/About'))
 
 function Protected({ children }) {
   const { isAuth } = useAuth()
@@ -96,6 +97,14 @@ export default function App() {
           element={
             <Protected>
               <Settings />
+            </Protected>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <Protected>
+              <About />
             </Protected>
           }
         />

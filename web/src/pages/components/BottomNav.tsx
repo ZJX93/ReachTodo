@@ -9,6 +9,7 @@ const ITEMS = [
   { path: '/goals', icon: 'goal', label: '目标' },
   { path: '/stats', icon: 'chart', label: '回顾' },
   { path: '/focus', icon: 'timer', label: '专注' },
+  { path: '/about', icon: 'info', label: '关于' },
 ]
 
 export default function BottomNav() {

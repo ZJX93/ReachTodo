@@ -15,6 +15,10 @@ COPY web/package.json web/package-lock.json ./
 # 与 CI 的 frontend job 保持一致，避免 CI 因 lock 漂移直接失败。
 RUN npm config set registry https://registry.npmmirror.com && npm install
 COPY web ./
+# 版本号由 publish.yml 通过 build-arg 传入（取 Android Release 的 X.Y.Z），
+# 注入为 VITE_APP_VERSION 供前端“关于”页在构建时读取并展示。
+ARG APP_VERSION=""
+ENV VITE_APP_VERSION=${APP_VERSION}
 RUN npm run build
 # 构建产物位于 /web/dist
 
