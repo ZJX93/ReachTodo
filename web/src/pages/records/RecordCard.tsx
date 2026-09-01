@@ -65,7 +65,13 @@ export default function RecordCard({ rec, onOpen, onDelete, onCalendar }: Record
             {rec.record_time}
           </span>
         )}
-        {rec.type === 'diary' && rec.mood && <span>{rec.mood} 心情</span>}
+        {rec.type === 'diary' && rec.mood && (
+          <span className="inline-flex items-center gap-0.5">{rec.mood}</span>
+        )}
+        {rec.type === 'diary' && rec.weather && <span>{rec.weather}</span>}
+        {rec.location && (
+          <span className="inline-flex items-center gap-0.5">📍 {rec.location}</span>
+        )}
         {rec.type === 'worklog' && rec.project && <span>项目 · {rec.project}</span>}
         {rec.type === 'note' && (rec.book_title || rec.book_author) && (
           <span>

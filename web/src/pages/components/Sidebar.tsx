@@ -61,6 +61,11 @@ const icons = {
       <circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
     </svg>
   ),
+  sprout: (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21v-9"/><path d="M12 12c0-3.9 3.1-7 7-7 0 3.9-3.1 7-7 7z"/><path d="M12 12c0-3.3-2.7-6-6-6 0 3.3 2.7 6 6 6z"/>
+    </svg>
+  ),
 }
 
 const brand = (
@@ -86,6 +91,7 @@ export default function Sidebar({ summary, selected, onSelect }: SidebarProps) {
   const desktopNav: NavItem[] = [
     { key: 'all', path: '/', label: '今日待办', icon: icons.todo, count: summary ? (summary.today_todo ?? summary.total_todo) : 0 },
     { key: 'matrix', path: '/matrix', label: '四象限', icon: icons.matrix },
+    { key: 'habits', path: '/habits', label: '习惯站', icon: icons.sprout },
     { key: 'records', path: '/records', label: '记录', icon: icons.doc },
     { key: 'calendar', path: '/calendar', label: '日历', icon: icons.cal },
     { key: 'stats', path: '/stats', label: '回顾 / 数据', icon: icons.chart },

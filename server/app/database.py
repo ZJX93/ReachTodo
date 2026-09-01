@@ -91,40 +91,38 @@ async def seed_demo_account():
 
 
 # 内置记录模板（全局，user_id 为 NULL，用户不可改不可删）
+# 设计原则：
+# - 拒绝【✅】【❌】这类指令式填空，避免把日记变成「答题卡」；
+# - 参考 Day One / Journey / Apple Journal：用氛围头部 + 开放式引导语
+#   作为写作起点，正文留足自由空间；
+# - 工作 / 读书笔记保留最小必要结构，但用问题或短语引导，而非表格。
 PRESET_TEMPLATES = [
-    # 个人日记 —— 借鉴「三问法 / 感恩练习 / 晨页」等成熟反思框架
-    {"type": "diary", "name": "每日心情日记", "icon": "🌤️", "content":
-        "【✅ 今天顺利的事】\n- \n- \n\n【❌ 今天不太顺的】\n- \n\n【🔄 明天换个做法】\n- \n"},
-    {"type": "diary", "name": "感恩日记", "icon": "🙏", "content":
-        "今天值得感恩的三件事：\n1. \n2. \n3. \n\n为什么感恩：\n💡 今天的一件小确幸：\n"},
-    {"type": "diary", "name": "自由书写", "icon": "✍️", "content":
-        "此时此刻，脑海里浮现的是……\n\n（不评判、不修改、不停笔，想到什么写什么，写满就好。）"},
-    # 工作日志 —— 借鉴日报最佳实践：成果 / 计划 / 问题 / 复盘
-    {"type": "worklog", "name": "每日工作日报", "icon": "💼", "content":
-        "【✅ 今日完成】\n- \n- \n\n【🔄 进行中】\n- \n\n【⚠️ 阻塞 / 风险】\n- \n\n【➡️ 明日计划】\n- \n\n【💡 今日收获 / 复盘】\n- \n"},
-    {"type": "worklog", "name": "周报", "icon": "📈", "content":
-        "【📌 本周成果】\n- \n- \n\n【🎯 下周重点】\n- \n\n【⚠️ 风险 / 需协调】\n- \n\n【🔍 本周复盘】\n- \n"},
-    {"type": "worklog", "name": "会议纪要", "icon": "🗒️", "content":
-        "【会议主题】\n【时间 / 地点】\n【参会人】\n\n【✅ 核心决议】\n- \n\n【📋 行动项（事项 / 负责人 / 截止）】\n- 事项：\n  负责人：\n  截止：\n\n【👀 待跟进】\n- \n"},
-    # 读书笔记 —— 借鉴康奈尔笔记（笔记 / 线索 / 总结）+ 卡片法「连接与应用」
-    {"type": "note", "name": "读书卡片", "icon": "📚", "content":
-        "【📒 书中内容 / 笔记】\n（核心论点、案例、数据，用自己的话记）\n\n【❓ 我的提问 / 关键词】\n- \n\n【💡 我的思考 / 关联】\n（它让我想到……、和已有知识有何联系）\n\n【🧩 可以如何应用】\n（在生活 / 工作里怎么用）"},
-    {"type": "note", "name": "金句摘抄", "icon": "💡", "content":
-        "【原文】\n（逐字摘录，保留标点）\n\n【出处】（书名 · 章节 · 页码）\n【背景】（这句话出现的情境）\n\n【💭 我的感悟】\n【🔗 可迁移到】（哪类问题能用上这句话）"},
-    {"type": "note", "name": "读后感", "icon": "📝", "content":
-        "【一句话总结】\n【内容概览】（核心脉络 / 主线）\n\n【🌟 最大收获 / 颠覆认知的点】\n【❤️ 喜欢的角色 / 观点】\n【🙋 推荐给谁 & 理由】\n【🚀 我的行动】（读完后打算做的一件事）"},
+    # 个人日记 —— 情绪与氛围优先
+    {"type": "diary", "name": "每日心情日记", "icon": "🌤️", "content": ""},
+    {"type": "diary", "name": "感恩日记", "icon": "🙏", "content": "今天让我心存感激的一件事：\n\n"},
+    {"type": "diary", "name": "自由书写", "icon": "✍️", "content": ""},
+    # 工作日志 —— 轻结构，问题引导
+    {"type": "worklog", "name": "工作日报", "icon": "💼", "content": "今天完成了什么？明天重点推进什么？\n\n"},
+    {"type": "worklog", "name": "周报", "icon": "📈", "content": "本周最重要的进展与下周打算：\n\n"},
+    {"type": "worklog", "name": "会议记录", "icon": "🗒️", "content": "本次会议的关键结论与待办：\n\n"},
+    # 读书笔记 —— 卡片式轻引导
+    {"type": "note", "name": "读书卡片", "icon": "📚", "content": "摘录一段打动你的文字，并写下你的想法：\n\n"},
+    {"type": "note", "name": "金句摘抄", "icon": "💡", "content": "一句话与一点思考：\n\n"},
+    {"type": "note", "name": "读后感", "icon": "📝", "content": "这本书带给你最重要的启发是什么？\n\n"},
 ]
 
 
 async def seed_preset_templates():
-    """内置模板：按 name 幂等更新（已存在则更新内容/图标，不存在则插入）。
-
-    这样修改 PRESET_TEMPLATES 后，老用户重新启动时也会同步到新版模板。"""
-    from sqlalchemy import select
+    """内置模板：按 name 幂等更新（已存在则更新内容/图标，不存在则插入），
+    并清理 PRESET_TEMPLATES 中已移除的旧预设模板，保持模板列表干净。"""
+    from sqlalchemy import delete, select
 
     from .models import Template
 
     async with SessionLocal() as session:
+        preset_names = {t["name"] for t in PRESET_TEMPLATES}
+
+        # 同步当前预设
         for t in PRESET_TEMPLATES:
             existing = await session.scalar(
                 select(Template).where(
@@ -147,6 +145,14 @@ async def seed_preset_templates():
                         content=t["content"],
                     )
                 )
+
+        # 删除已废弃的旧预设（Record 表不保留 template_id 外键，可安全删除）
+        await session.execute(
+            delete(Template).where(
+                Template.is_preset == True,  # noqa: E712
+                Template.name.notin_(preset_names),
+            )
+        )
         await session.commit()
 
 

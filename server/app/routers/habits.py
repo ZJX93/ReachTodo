@@ -6,8 +6,12 @@
 
 同步协议（与前端 ``docs/prototypes/habit-station.html`` 的 Sync 模块对齐）：
 
-    GET  /api/habits/sync?since=<ISO>   拉取 updated_at 晚于 since 的增量
-    POST /api/habits/sync               推送本地增量，返回写入计数
+    GET  /api/habits/sync?since=<ISO>&tz=<IANA>  拉取 updated_at 晚于 since 的增量
+    POST /api/habits/sync?since=<ISO>&tz=<IANA>  推送增量，并回传 since 之后的增量
+
+两个端点都接受可选的 ``tz``（IANA 时区名）来判定「今天」，不传则用服务端
+配置时区。POST 的 ``since`` 默认为 epoch（等价回传全量快照，兼容早期客户端），
+新客户端应传上次同步拿到的 ``server_time`` 以减小响应体。
 
 合并策略：**last-write-wins**，按 client_id 定位、比 ``updated_at``。
 删除通过 ``deleted_at`` 墓碑传播，绝不物理删除，否则已删数据会在另一台
@@ -31,7 +35,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -59,6 +63,12 @@ _FREQS = ("daily", "weekday", "weekend", "custom")
 _SIZES = ("sm", "md", "lg")
 _DEFAULT_COLOR = "#7C9A92"
 _MAX_SPAN_DAYS = 3650  # streak 回溯上限，防脏数据（start_date 极早）拖垮请求
+
+# 客户端 updated_at 的容差区间。合并策略是 last-write-wins、完全信任客户端
+# 时间戳，因此某端时钟严重超前（误设为 2099 年）时，那条记录会在所有设备上
+# 「永远最新」，再也改不动 —— 必须对客户端时间戳做区间收敛。
+_CLOCK_SKEW_FUTURE = timedelta(minutes=5)  # 允许的未来偏移（覆盖网络延迟与跨时区误差）
+_CLOCK_SKEW_PAST = timedelta(days=365)  # 允许的回溯上限，超出即视为时钟异常
 
 
 # =========================================================================
@@ -497,6 +507,7 @@ async def upsert_mood(
 @router.get("/sync", response_model=SyncPull)
 async def sync_pull(
     since: str = Query(default="1970-01-01T00:00:00Z"),
+    tz: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
@@ -506,6 +517,7 @@ async def sync_pull(
     **包含已删除的墓碑**（否则其它设备不知道有东西被删了）。
     """
     cutoff = _parse_dt(since) or datetime(1970, 1, 1, tzinfo=timezone.utc)
+    today = today_in(tz)
 
     habits = (
         await db.execute(
@@ -541,7 +553,7 @@ async def sync_pull(
         cid_map = {r[0]: r[1] for r in rows}
 
     return SyncPull(
-        habits=[_habit_payload(h, {}, today_in(), with_stats=False) for h in habits],
+        habits=[_habit_payload(h, {}, today, with_stats=False) for h in habits],
         checkins=[
             _checkin_payload(c, cid_map.get(c.habit_id, "")) for c in checkins
         ],
@@ -661,18 +673,46 @@ def _newer_than(remote: Optional[datetime], local: Optional[datetime]) -> bool:
     return remote is not None and local is None
 
 
+def _sanitize_updated_at(remote: Optional[datetime]) -> Optional[datetime]:
+    """把客户端提供的 updated_at 收敛到合理区间。
+
+    LWW 的软肋是信任客户端时钟：一台时钟超前一天的设备推送后，它的数据
+    在所有设备上都会「赢」，用户再怎么改都改不动。这里做双向夹紧：
+
+    - 超前 → 夹到当前时刻（剥夺它不该有的优先权）；
+    - 过分滞后 → 夹到回溯下限。**不能**退回 None：那样会触发列的
+      ``onupdate`` 把时间戳刷成「现在」，反而让旧数据覆盖新数据。
+    """
+    if remote is None:
+        return None
+    now = datetime.now(timezone.utc)
+    if remote > now + _CLOCK_SKEW_FUTURE:
+        return now
+    if remote < now - _CLOCK_SKEW_PAST:
+        return now - _CLOCK_SKEW_PAST
+    return remote
+
+
 @router.post("/sync", response_model=SyncPull)
 async def sync_push(
     payload: SyncPush,
+    since: str = Query(
+        default="1970-01-01T00:00:00Z",
+        description="回传增量的起点；带上上次同步的 server_time 可显著减小响应体",
+    ),
+    tz: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
     """推送增量，last-write-wins 合并，并返回本次写入计数。
 
-    同时回传服务端当前快照（``since=0`` 的等价结果），
-    让客户端一次往返就能完成「推 + 拉」，省掉一次 GET。
+    同时回传服务端增量，让客户端一次往返就能完成「推 + 拉」，省掉一次 GET。
+
+    ``since`` 默认为 epoch（等价回传全量快照，兼容早期客户端）。新客户端应当
+    带上上次同步拿到的 ``server_time``：习惯与打卡会随使用日积月累，每次同步
+    都全量回传在数据量上来后会成为明显的带宽与延迟负担。
     """
-    today = today_in()
+    today = today_in(tz)
     applied = {"habits": 0, "checkins": 0, "moods": 0}
 
     # ---- 习惯 ----
@@ -681,7 +721,7 @@ async def sync_push(
         cid = str(item.get("id") or "").strip()
         if not cid:
             continue
-        remote_upd = _parse_dt(item.get("updated_at"))
+        remote_upd = _sanitize_updated_at(_parse_dt(item.get("updated_at")))
         row = await _get_habit(db, current.id, cid, include_deleted=True)
         if row is None:
             row = Habit(
@@ -724,22 +764,46 @@ async def sync_push(
         for pk, cid in rows:
             id_map[cid] = pk
 
+    # 先做一遍纯 CPU 的预解析，筛掉无效项与孤儿项；再用一条查询把已存在的
+    # 记录批量取回 —— 避免原实现「每条一次 await」造成的 N+1。批量同步历史
+    # 数据时，这里的查询次数从 O(n) 降到 O(1)。
+    pending: list[tuple[dict[str, Any], int, date, Optional[datetime], str]] = []
     for item in payload.checkins or []:
         cid = str(item.get("id") or "").strip()
-        habit_cid = str(item.get("habit_id") or "").strip()
-        habit_pk = id_map.get(habit_cid)
+        habit_pk = id_map.get(str(item.get("habit_id") or "").strip())
         if not habit_pk:
             continue  # 孤儿打卡记录（习惯不存在/尚未同步）直接跳过
         d = _parse_date(item.get("checkin_date"))
         if not d:
             continue
+        remote_upd = _sanitize_updated_at(_parse_dt(item.get("updated_at")))
+        pending.append((item, habit_pk, d, remote_upd, cid))
 
-        remote_upd = _parse_dt(item.get("updated_at"))
-        row = await db.scalar(
-            select(HabitCheckin).where(
-                HabitCheckin.habit_id == habit_pk, HabitCheckin.checkin_date == d
+    existing: dict[tuple[int, date], HabitCheckin] = {}
+    if pending:
+        # 这里刻意不用 tuple_().in_()：行值语法依赖较新的 SQLite，
+        # 用 or_ 展开可保证在所有后端上都能跑（同步包通常几十到几百条）。
+        conds = [
+            and_(HabitCheckin.habit_id == pk, HabitCheckin.checkin_date == d)
+            for pk, d in sorted({(pk, d) for _, pk, d, _, _ in pending})
+        ]
+        existing = {
+            (r.habit_id, r.checkin_date): r
+            for r in (
+                await db.execute(
+                    select(HabitCheckin).where(
+                        HabitCheckin.user_id == current.id, or_(*conds)
+                    )
+                )
             )
-        )
+            .scalars()
+            .all()
+        }
+
+    import re as _re
+
+    for item, habit_pk, d, remote_upd, cid in pending:
+        row = existing.get((habit_pk, d))
         if row is None:
             # 同一 (habit, date) 可能已存在但 client_id 不同（两端各自生成）——
             # 此时按业务键合并，而不是报唯一约束冲突。
@@ -751,6 +815,8 @@ async def sync_push(
             )
             db.add(row)
             await db.flush()
+            # 登记进索引：同一批次若还有相同业务键，复用它而不是再插一条
+            existing[(habit_pk, d)] = row
             applied["checkins"] += 1
         elif not cid or row.client_id == cid:
             if not _newer_than(remote_upd, _parse_dt(row.updated_at)):
@@ -786,20 +852,37 @@ async def sync_push(
             row.updated_at = remote_upd
 
     # ---- 心情 ----
+    pending_moods: list[tuple[dict[str, Any], date, Optional[datetime]]] = []
     for item in payload.moods or []:
         d = _parse_date(item.get("date") or item.get("mood_date"))
         if not d:
             continue
+        remote_upd = _sanitize_updated_at(_parse_dt(item.get("updated_at")))
+        pending_moods.append((item, d, remote_upd))
+
+    # 心情以 (user_id, mood_date) 唯一，一次 IN 查询即可批量取回
+    existing_moods: dict[date, HabitMood] = {}
+    if pending_moods:
+        existing_moods = {
+            r.mood_date: r
+            for r in (
+                await db.execute(
+                    select(HabitMood).where(
+                        HabitMood.user_id == current.id,
+                        HabitMood.mood_date.in_({d for _, d, _ in pending_moods}),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        }
+
+    for item, d, remote_upd in pending_moods:
         try:
             score = max(1, min(5, int(item.get("score") or 3)))
         except (TypeError, ValueError):
             score = 3
-        remote_upd = _parse_dt(item.get("updated_at"))
-        row = await db.scalar(
-            select(HabitMood).where(
-                HabitMood.user_id == current.id, HabitMood.mood_date == d
-            )
-        )
+        row = existing_moods.get(d)
         if row is None:
             row = HabitMood(
                 user_id=current.id,
@@ -810,6 +893,7 @@ async def sync_push(
             )
             db.add(row)
             await db.flush()
+            existing_moods[d] = row
             applied["moods"] += 1
         elif _newer_than(remote_upd, _parse_dt(row.updated_at)):
             applied["moods"] += 1
@@ -823,8 +907,8 @@ async def sync_push(
 
     await db.commit()
 
-    # 回传服务端最新快照，客户端一次往返完成推 + 拉
-    snapshot = await sync_pull(since="1970-01-01T00:00:00Z", db=db, current=current)
+    # 回传服务端增量，客户端一次往返完成推 + 拉
+    snapshot = await sync_pull(since=since, tz=tz, db=db, current=current)
     snapshot.applied = applied
     return snapshot
 

@@ -25,6 +25,8 @@ class Record(Base):
     book_title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # 读书笔记
     book_author: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     project: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # 工作日志项目
+    weather: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # 天气（emoji 或文字）
+    location: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # 位置
     record_date: Mapped[date] = mapped_column(Date, index=True, default=date.today)
     record_time: Mapped[Optional[str]] = mapped_column(
         String(5), nullable=True

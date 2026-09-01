@@ -1365,7 +1365,8 @@ var Sync = {
       moods: newer(State.moods),
       client_time: nowISO()
     };
-    return await Sync.request('/api/habits/sync', { method: 'POST', body: JSON.stringify(payload) });
+    // 带上 since：服务端只回传增量，避免每次同步都全量回传历史积累
+    return await Sync.request('/api/habits/sync?since=' + encodeURIComponent(since), { method: 'POST', body: JSON.stringify(payload) });
   },
 
   run: async function (silent) {

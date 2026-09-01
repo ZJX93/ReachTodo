@@ -1,8 +1,31 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
+import api from '../../api'
+
+// 轻量图片节点：复用 @tiptap/core 的 Node，不引入额外扩展包，规避 peer 版本冲突。
+const ImageNode = Node.create({
+  name: 'image',
+  group: 'block',
+  inline: false,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: {},
+      alt: { default: null },
+      title: { default: null },
+    }
+  },
+  parseHTML() {
+    return [{ tag: 'img[src]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['img', mergeAttributes(HTMLAttributes)]
+  },
+})
 
 const COLORS = ['#0f172a', '#2563eb', '#06b6d4', '#dc2626', '#059669', '#d97706', '#db2777']
 
@@ -11,7 +34,7 @@ const tb =
 
 export default function RichTextEditor({ value, onChange, placeholder }) {
   const editor = useEditor({
-    extensions: [StarterKit, TextStyle, Color],
+    extensions: [StarterKit, TextStyle, Color, ImageNode],
     content: value || '',
     editorProps: {
       attributes: {
@@ -21,6 +44,9 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   })
+
+  const fileRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
 
   // 外部 value 变化（切换记录等）时同步到编辑器，避免光标回环
   useEffect(() => {
@@ -32,6 +58,24 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
   }, [value, editor])
 
   if (!editor) return null
+
+  const onPickImage = () => fileRef.current?.click()
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // 允许重复选同一文件
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const { data } = await api.post('/upload/image', fd)
+      editor.chain().focus().insertContent(`<img src="${data.url}">`).run()
+    } catch {
+      alert('图片上传失败')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const btn = (active, onClick, children) => (
     <button
@@ -66,6 +110,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
         {btn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), '1. 列表')}
         {btn(editor.isActive('blockquote'), () => editor.chain().focus().toggleBlockquote().run(), '❝')}
         <span className="w-px h-5 bg-white/75 mx-0.5" />
+        {btn(false, onPickImage, uploading ? '…' : '🖼')}
         {COLORS.map((c) => (
           <button
             key={c}
@@ -97,6 +142,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
       <div className="border border-white/75 rounded-xl bg-white/70 focus-within:border-[#06b6d4] focus-within:ring-2 focus-within:ring-[#06b6d4]/20 transition">
         <EditorContent editor={editor} />
       </div>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
     </div>
   )
 }
