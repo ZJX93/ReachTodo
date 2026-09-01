@@ -15,6 +15,8 @@ class RecordCreate(BaseModel):
     book_title: Optional[str] = Field(default=None, max_length=200)
     book_author: Optional[str] = Field(default=None, max_length=100)
     project: Optional[str] = Field(default=None, max_length=100)
+    weather: Optional[str] = Field(default=None, max_length=30)
+    location: Optional[str] = Field(default=None, max_length=100)
     record_date: Optional[date] = None
     record_time: Optional[str] = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     template_id: Optional[int] = Field(default=None, ge=1)
@@ -29,6 +31,8 @@ class RecordUpdate(BaseModel):
     book_title: Optional[str] = Field(default=None, max_length=200)
     book_author: Optional[str] = Field(default=None, max_length=100)
     project: Optional[str] = Field(default=None, max_length=100)
+    weather: Optional[str] = Field(default=None, max_length=30)
+    location: Optional[str] = Field(default=None, max_length=100)
     record_date: Optional[date] = None
     record_time: Optional[str] = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -46,6 +50,8 @@ class RecordOut(BaseModel):
     book_title: Optional[str]
     book_author: Optional[str]
     project: Optional[str]
+    weather: Optional[str]
+    location: Optional[str]
     record_date: date
     record_time: Optional[str]
     created_at: datetime

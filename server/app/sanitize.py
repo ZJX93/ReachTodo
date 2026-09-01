@@ -19,16 +19,17 @@ except ImportError:  # pragma: no cover - 取决于运行环境是否安装 nh3
     nh3 = None
     _HAS_NH3 = False
 
-# 允许的标签（与前端 editor 基本对齐，去掉 img/script/iframe 等危险标签）
+# 允许的标签（与前端 editor 基本对齐，去掉 script/iframe 等危险标签，保留 img 配图）
 ALLOWED_TAGS = {
     "b", "strong", "i", "em", "u", "s",
-    "span", "div", "br", "p", "font", "a",
+    "span", "div", "br", "p", "font", "a", "img",
     "ul", "ol", "li", "h3", "h4",
 }
 # 仅放行安全的属性；不放行 style（避免 CSS 数据外泄），javascript: 协议由 nh3 默认过滤
 ALLOWED_ATTRIBUTES = {
     "a": {"href"},
     "font": {"color"},
+    "img": {"src", "alt", "title"},
 }
 
 _TAG_RE = re.compile(r"<[^>]+>")

@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Goals = lazy(() => import('./pages/Goals'))
 const Matrix = lazy(() => import('./pages/Matrix'))
 const Stats = lazy(() => import('./pages/Stats'))
+const Habits = lazy(() => import('./pages/Habits'))
 const Focus = lazy(() => import('./pages/Focus'))
 const Records = lazy(() => import('./pages/Records'))
 const Calendar = lazy(() => import('./pages/Calendar'))
@@ -65,6 +66,14 @@ export default function App() {
           element={
             <Protected>
               <Stats />
+            </Protected>
+          }
+        />
+        <Route
+          path="/habits"
+          element={
+            <Protected>
+              <Habits />
             </Protected>
           }
         />

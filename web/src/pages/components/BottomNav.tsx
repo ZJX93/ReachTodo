@@ -4,6 +4,7 @@ import { NavIcon } from '../ui'
 const ITEMS = [
   { path: '/', icon: 'todo', label: '看板' },
   { path: '/matrix', icon: 'matrix', label: '四象限' },
+  { path: '/habits', icon: 'sprout', label: '习惯' },
   { path: '/records', icon: 'doc', label: '记录' },
   { path: '/calendar', icon: 'cal', label: '日历' },
   { path: '/goals', icon: 'goal', label: '目标' },

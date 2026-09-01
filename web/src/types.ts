@@ -111,6 +111,8 @@ export interface RecordItem {
   title: string
   content: string | null
   mood: string | null
+  weather: string | null
+  location: string | null
   tags: string | null
   book_title: string | null
   book_author: string | null

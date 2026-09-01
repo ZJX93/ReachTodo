@@ -12,6 +12,10 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
   // 单体部署：构建产物输出到 dist/，由根 Dockerfile 拷入 server/public，

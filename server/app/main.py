@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import settings
+from .config import BACKEND_DIR, settings
 from .database import init_db
 from .ratelimit import RateLimitMiddleware
 from .security_headers import SecurityHeadersMiddleware
@@ -31,6 +31,7 @@ from .routers import (
     settings as settings_router,
     trash,
     habits,
+    uploads,
 )
 from .scheduler import start as scheduler_start, stop as scheduler_stop
 
@@ -107,6 +108,14 @@ app.include_router(settings_router.router)
 app.include_router(trash.router)
 app.include_router(calendar_feed.router)
 app.include_router(habits.router)
+app.include_router(uploads.router)
+
+# 用户上传的静态资源（日记配图等）：按用户分目录存放在 server/uploads，
+# 通过 /uploads 暴露；文件名为 uuid，路径不可枚举。必须在 SPA catch-all 之前挂载，
+# 否则会被 history 回退逻辑拦截。
+UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 @app.get("/health")
